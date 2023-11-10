@@ -47,7 +47,7 @@ django-celery-results==2.4.0
 redis==4.5.5
 django_redis
 python-magic==0.4.27
-cryptography==41.0.1
+cryptography==41.0.4
 mozilla-django-oidc==3.0.0
 PyJWT<2.4.0
 django-session-timeout-joinup==1.0.0
