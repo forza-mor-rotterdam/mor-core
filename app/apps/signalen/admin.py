@@ -1,6 +1,8 @@
 from apps.signalen.models import Signaal
 from django.contrib import admin
 
+from .tasks import convert_aanvullende_informatie_to_aanvullende_vragen
+
 
 class SignaalAdmin(admin.ModelAdmin):
     list_display = (
@@ -13,6 +15,19 @@ class SignaalAdmin(admin.ModelAdmin):
         "melding",
         "melder",
     )
+
+    # Define the custom admin action
+    def convert_to_aanvullende_vragen(self, request, queryset):
+        signaal_ids = list(queryset.values_list("id", flat=True))
+        convert_aanvullende_informatie_to_aanvullende_vragen.delay(signaal_ids)
+        self.message_user(request, "Conversion started for selected signaals.")
+
+    convert_to_aanvullende_vragen.short_description = (
+        "Convert aanvullende informatie to aanvullende vragen"
+    )
+
+    # Register the admin action
+    actions = [convert_to_aanvullende_vragen]
 
 
 admin.site.register(Signaal, SignaalAdmin)

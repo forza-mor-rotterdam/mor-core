@@ -27,6 +27,7 @@ class MeldingAdmin(admin.ModelAdmin):
         "aangepast_op",
         "afgesloten_op",
     )
+
     actions = (action_notificatie_voor_signaal_melding_afgesloten,)
 
     def status_naam(self, obj):

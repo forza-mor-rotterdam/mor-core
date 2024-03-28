@@ -36,8 +36,15 @@ class SignaalApiTest(APITestCase):
                 "bron_url": "https://onderwerpen-acc.forzamor.nl/api/v1/group/41202ca5-929f-423b-9b46-b9127e0a19e0/category/ca1c979e-ab3a-4ca2-8f02-e93fda448c15/"
             }
         ],
-        "omschrijving_kort": "string",
-        "omschrijving": "string",
+        "omschrijving_melder": "string",
+        "aanvullende_informatie": "string",
+        "aanvullende_vragen": [
+            {
+                "question": "Wat voor grofvuil ligt er?",
+                "answers": ["Karton", "Iets anders"],
+            },
+            {"question": "Waar ligt het grofvuil?", "answers": ["Op straat"]},
+        ],
         "meta": {
             "additionalProp1": "string",
             "additionalProp2": "string",
@@ -256,7 +263,6 @@ class MeldingApiTest(APITestCase):
         # melding 1
         melding_1_status = baker.make(Status, naam=status_naam_1)
         m1 = melding_1_status.melding
-        m1.omschrijving_kort = "melding 1"
         m1.origineel_aangemaakt = melding_1_dt
         m1.status = melding_1_status
         m1.onderwerpen.add(onderwerp_1)
@@ -267,7 +273,6 @@ class MeldingApiTest(APITestCase):
         # change origineel_aangemaakt
         melding_2_status = baker.make(Status, naam=status_naam_1)
         m2 = melding_2_status.melding
-        m2.omschrijving_kort = "melding 2"
         m2.origineel_aangemaakt = melding_2_dt
         m2.status = melding_2_status
         m2.onderwerpen.add(onderwerp_1)
@@ -278,7 +283,6 @@ class MeldingApiTest(APITestCase):
         # change status
         melding_3_status = baker.make(Status, naam=status_naam_2)
         m3 = melding_3_status.melding
-        m3.omschrijving_kort = "melding 3"
         m3.origineel_aangemaakt = melding_1_dt
         m3.status = melding_3_status
         m3.onderwerpen.add(onderwerp_1)
@@ -289,7 +293,6 @@ class MeldingApiTest(APITestCase):
         # change onderwerp
         melding_4_status = baker.make(Status, naam=status_naam_1)
         m4 = melding_4_status.melding
-        m4.omschrijving_kort = "melding 4"
         m4.origineel_aangemaakt = melding_1_dt
         m4.status = melding_4_status
         m4.onderwerpen.add(onderwerp_2)
@@ -300,7 +303,6 @@ class MeldingApiTest(APITestCase):
         # change point to p3 (uitside range)
         melding_5_status = baker.make(Status, naam=status_naam_1)
         m5 = melding_5_status.melding
-        m5.omschrijving_kort = "melding 4"
         m5.origineel_aangemaakt = melding_1_dt
         m5.status = melding_5_status
         m5.onderwerpen.add(onderwerp_1)
@@ -328,4 +330,3 @@ class MeldingApiTest(APITestCase):
 
         self.assertEqual(Melding.objects.count(), 5)
         self.assertEqual(len(data["results"]), 1)
-        self.assertEqual(data["results"][0].get("omschrijving_kort"), "melding 1")
