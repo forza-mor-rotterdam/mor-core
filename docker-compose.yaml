@@ -57,6 +57,11 @@ services:
       - mor_network
     ports:
       - "6379"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 128M
 
   core_celery_worker:
     build: ./app
@@ -74,6 +79,11 @@ services:
       - mor_network
       - mor_bridge_network
     # restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
 
   core_app_celery_beat:
     build: ./app
@@ -91,6 +101,11 @@ services:
       - mor_network
       - mor_bridge_network
     # restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
 
   flower:
     image: mher/flower

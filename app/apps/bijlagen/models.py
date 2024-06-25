@@ -72,6 +72,11 @@ class Bijlage(BasisModel):
         return paden
 
     def aanmaken_afbeelding_versies(self):
+        from resource import RUSAGE_SELF, getrusage
+
+        logger.info(
+            f"Mem thumb resource RUSAGE_SELF start: {getrusage(RUSAGE_SELF).ru_maxrss}, id={self.id}"
+        )
         mt = mimetypes.guess_type(self.bestand.path, strict=True)
         if exists(self.bestand.path):
             bestand = self.bestand.path
@@ -81,21 +86,32 @@ class Bijlage(BasisModel):
             if self.mimetype == "image/heic":
                 bestand = self._heic_to_jpeg(self.bestand)
                 self.is_afbeelding = True
-
+                logger.info(
+                    f"Mem thumb resource RUSAGE_SELF after heic_to_jpeg: {getrusage(RUSAGE_SELF).ru_maxrss}, id={self.id}"
+                )
             if self.is_afbeelding:
                 try:
+                    logger.info(
+                        f"Mem thumb resource RUSAGE_SELF before small: {getrusage(RUSAGE_SELF).ru_maxrss}, id={self.id}"
+                    )
                     self.afbeelding_verkleind.name = get_thumbnail(
                         bestand,
                         settings.THUMBNAIL_KLEIN,
                         format="JPEG",
                         quality=99,
                     ).name
+                    logger.info(
+                        f"Mem thumb resource RUSAGE_SELF after small: {getrusage(RUSAGE_SELF).ru_maxrss}, id={self.id}"
+                    )
                     self.afbeelding.name = get_thumbnail(
                         bestand,
                         settings.THUMBNAIL_STANDAARD,
                         format="JPEG",
                         quality=80,
                     ).name
+                    logger.info(
+                        f"Mem thumb resource after RUSAGE_SELF big: {getrusage(RUSAGE_SELF).ru_maxrss}, id={self.id}"
+                    )
                 except Exception as e:
                     raise Bijlage.AfbeeldingVersiesAanmakenFout(
                         f"aanmaken_afbeelding_versies: get_thumbnail fout: {e}"
