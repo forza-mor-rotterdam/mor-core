@@ -365,7 +365,7 @@ class CustomCollector(object):
         )
         threshold_taken = (
             self.annotated_threshold_taken.filter(
-                ~Q(status__naam="voltooid"),
+                ~Q(status__naam__in=["voltooid", "voltooid_met_feedback"]),
                 afgesloten_op__isnull=True,
                 aangemaakt_op__lte=timezone.now()
                 - timezone.timedelta(days=1) * F("threshold"),
@@ -395,7 +395,7 @@ class CustomCollector(object):
 
         taken = (
             self.annotated_threshold_taken.filter(
-                ~Q(status__naam="voltooid"),
+                ~Q(status__naam__in=["voltooid", "voltooid_met_feedback"]),
                 afgesloten_op__isnull=True,
                 aangemaakt_op__gt=timezone.now()
                 - timezone.timedelta(days=1) * F("threshold"),

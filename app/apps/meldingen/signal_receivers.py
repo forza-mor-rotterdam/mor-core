@@ -67,7 +67,10 @@ def afgesloten_handler(sender, melding, *args, **kwargs):
     )
 
     for taakgebeurtenis in Taakgebeurtenis.objects.filter(
-        taakstatus__naam=Taakstatus.NaamOpties.VOLTOOID,
+        taakstatus__naam__in=[
+            Taakstatus.NaamOpties.VOLTOOID,
+            Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
+        ],
         taakopdracht__melding=melding,
         additionele_informatie__taak_url__isnull=True,
     ):

@@ -8,7 +8,7 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.contrib.postgres.search import TrigramSimilarity
 from django.db import models
-from django.db.models import F, Max, OuterRef, Q
+from django.db.models import F, Max, OuterRef, Q, Subquery
 from django.db.models.functions import Greatest
 from django.forms.fields import CharField, MultipleChoiceField
 from django.utils.translation import gettext_lazy as _
@@ -255,18 +255,14 @@ class MeldingFilter(BasisFilter):
 
     def get_buurt(self, queryset, name, value):
         if value:
-            # buurtnamen = (
-            #     Locatie.objects.filter(melding=OuterRef("pk"))
-            #     .order_by("-gewicht")
-            #     .values("buurtnaam")[:1]
-            # )
-            # return queryset.annotate(buurtnaam=Subquery(buurtnamen)).filter(
-            #     buurtnaam__in=value
-            # )
-
-            return queryset.filter(
-                locaties_voor_melding__buurtnaam__in=value
-            ).distinct()
+            queryset = queryset.prefetch_related("locaties_voor_melding")
+            buurtnamen_subquery = (
+                Locatie.objects.filter(melding=OuterRef("pk"))
+                .order_by("-gewicht")
+                .values("buurtnaam")[:1]
+            )
+            queryset = queryset.annotate(buurtnaam=Subquery(buurtnamen_subquery))
+            queryset = queryset.filter(buurtnaam__in=value).distinct()
         return queryset
 
     def get_wijk(self, queryset, name, value):

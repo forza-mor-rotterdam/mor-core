@@ -142,7 +142,9 @@ class Melding(BasisModel):
         return self.locaties_voor_melding
 
     def actieve_taakopdrachten(self):
-        return self.taakopdrachten_voor_melding.exclude(status__naam="voltooid")
+        return self.taakopdrachten_voor_melding.exclude(
+            status__naam__in=["voltooid", "voltooid_met_feedback"]
+        )
 
     def get_absolute_url(self):
         domain = Site.objects.get_current().domain

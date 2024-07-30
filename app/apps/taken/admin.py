@@ -27,7 +27,10 @@ from .admin_filters import (
 @admin.action(description="Update fixer taak status")
 def action_update_fixer_taak_status(modeladmin, request, queryset):
     for taakgebeurtenis in queryset.all():
-        if taakgebeurtenis.taakstatus.naam == Taakstatus.NaamOpties.VOLTOOID:
+        if taakgebeurtenis.taakstatus.naam in [
+            Taakstatus.NaamOpties.VOLTOOID,
+            Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
+        ]:
             task_taak_status_aanpassen.delay(
                 taakgebeurtenis_id=taakgebeurtenis.id,
                 voorkom_dubbele_sync=False,
@@ -43,6 +46,7 @@ class TaakgebeurtenisAdmin(admin.ModelAdmin):
         "id",
         "uuid",
         "taakstatus",
+        "resolutie",
         "aangemaakt_op",
         "aangepast_op",
         "taakopdracht",
@@ -116,7 +120,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
         "pretty_afhandeltijd",
         "melding__afgesloten_op",
         "pretty_status",
-        "resolutie",
+        "get_resolutie",
     )
     actions = (
         action_set_taak_afgesloten_op_for_melding_afgesloten,
@@ -143,6 +147,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
         "aangemaakt_op",
         "aangepast_op",
         "afgesloten_op",
+        "get_resolutie",
     )
     fieldsets = (
         (
@@ -155,7 +160,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
                     "applicatie",
                     "taaktype",
                     "status",
-                    "resolutie",
+                    "get_resolutie",
                     "bericht",
                     "additionele_informatie",
                     "taak_url",
@@ -190,6 +195,19 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
     pretty_status.short_description = "Status"
     pretty_status.admin_order_field = "status__naam"
 
+    def get_resolutie(self, obj):
+        taakgebeurtenis = (
+            obj.taakgebeurtenissen_voor_taakopdracht.filter(
+                taakstatus__naam__in=["voltooid", "voltooid_met_feedback"]
+            )
+            .order_by("-id")
+            .first()
+        )
+        return taakgebeurtenis.resolutie if taakgebeurtenis else "-"
+
+    get_resolutie.short_description = "Resolutie"
+    get_resolutie.admin_order_field = "taakgebeurtenissen_voor_taakopdracht__resolutie"
+
     def pretty_afhandeltijd(self, obj):
         if obj.afhandeltijd:
             days = obj.afhandeltijd.days
@@ -208,7 +226,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
         return qs.select_related(
             "melding",
             "status",
-        )
+        ).prefetch_related("taakgebeurtenissen_voor_taakopdracht")
 
 
 def retry_celery_task_admin_action(modeladmin, request, queryset):

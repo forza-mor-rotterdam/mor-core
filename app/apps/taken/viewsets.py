@@ -49,8 +49,12 @@ class TaakopdrachtViewSet(viewsets.ReadOnlyModelViewSet):
             context={"request": request},
         )
         if serializer.is_valid():
+            externr_niet_opgelost = request.data.get("externr_niet_opgelost", False)
             Melding.acties.taakopdracht_status_aanpassen(
-                serializer, taakopdracht, request=request
+                serializer,
+                taakopdracht,
+                request=request,
+                externr_niet_opgelost=externr_niet_opgelost,
             )
 
             serializer = TaakopdrachtSerializer(

@@ -52,7 +52,7 @@ def task_fix_taakopdracht_issues(self, taakopdracht_id):
         .first()
     )
     # Issue: Fix missing afgesloten_op voor geannuleerde taken
-    if not taakopdracht.afgesloten_op and taakopdracht.resolutie == "geannuleerd":
+    if not taakopdracht.afgesloten_op and taakgebeurtenis.resolutie == "geannuleerd":
         taakopdracht.afgesloten_op = taakgebeurtenis.aangemaakt_op
         taakopdracht.save()
         logger.warning(
@@ -63,7 +63,7 @@ def task_fix_taakopdracht_issues(self, taakopdracht_id):
         not taakopdracht.afhandeltijd
         and taakopdracht.afgesloten_op
         and taakopdracht.aangemaakt_op
-        and taakopdracht.resolutie == "geannuleerd"
+        and taakgebeurtenis.resolutie == "geannuleerd"
     ):
         taakopdracht.afhandeltijd = (
             taakopdracht.afgesloten_op - taakopdracht.aangemaakt_op
@@ -232,7 +232,7 @@ def task_taak_status_aanpassen(self, taakgebeurtenis_id, voorkom_dubbele_sync=Tr
             "bijlagen": [
                 bijlage.get_absolute_url() for bijlage in taakgebeurtenis.bijlagen.all()
             ],
-            "resolutie": taakopdracht.resolutie,
+            "resolutie": taakgebeurtenis.resolutie,
             "omschrijving_intern": taakgebeurtenis.omschrijving_intern,
             "gebruiker": taakgebeurtenis.gebruiker,
             "uitvoerder": taakgebeurtenis.additionele_informatie.get("uitvoerder"),

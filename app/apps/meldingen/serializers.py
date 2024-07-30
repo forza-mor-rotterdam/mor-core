@@ -20,7 +20,6 @@ from drf_spectacular.utils import extend_schema_field
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from shapely.wkt import loads
 
 
 class MeldingLinksSerializer(serializers.Serializer):
@@ -187,7 +186,10 @@ class TaakgebeurtenisMeldingLijstSerializer(TaakgebeurtenisSerializer):
 
     class Meta:
         model = Taakgebeurtenis
-        fields = ("bijlagen",)
+        fields = (
+            "bijlagen",
+            "resolutie",
+        )
 
 
 class TaakopdrachtMeldingLijstSerializer(serializers.ModelSerializer):
@@ -200,7 +202,6 @@ class TaakopdrachtMeldingLijstSerializer(serializers.ModelSerializer):
         model = Taakopdracht
         fields = (
             "titel",
-            "resolutie",
             "status",
             "taakgebeurtenissen_voor_taakopdracht",
         )
@@ -362,19 +363,28 @@ class MeldingDetailSerializer(MeldingSerializer):
 
 
 class MeldingAantallenSerializer(serializers.Serializer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.wijken_gps_lookup = self.fetch_wijken_gps_lookup()
+
+    def fetch_wijken_gps_lookup(self):
+        gemeentecode = settings.WIJKEN_EN_BUURTEN_GEMEENTECODE
+        wijken = PDOKService().get_wijken_middels_gemeentecode(gemeentecode)
+        return {wijk.get("wijknaam"): wijk.get("centroide_ll") for wijk in wijken}
+
     def to_representation(self, instance):
-        wijken = PDOKService().get_wijken_middels_gemeentecode(
-            gemeentecode=settings.WIJKEN_EN_BUURTEN_GEMEENTECODE
-        )
-        wijken_gps_lookup = {
-            wijk.get("wijknaam"): wijk.get("centroide_ll") for wijk in wijken
-        }
         wijk = instance.get("wijk")
-        gps = loads(wijken_gps_lookup.get(wijk)) if wijken_gps_lookup.get(wijk) else ""
-        instance.update(
-            {
-                "lat": str(gps.coords[0][1]) if gps else "",
-                "lon": str(gps.coords[0][0]) if gps else "",
-            }
-        )
-        return instance
+        gps = self.wijken_gps_lookup.get(wijk)
+
+        if gps:
+            lat = str(gps.coords[0][1])
+            lon = str(gps.coords[0][0])
+        else:
+            lat = ""
+            lon = ""
+
+        return {
+            **instance,
+            "lat": lat,
+            "lon": lon,
+        }
