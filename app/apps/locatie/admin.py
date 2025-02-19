@@ -1,8 +1,43 @@
 from apps.locatie.models import Adres, Graf, Lichtmast, Locatie
 from apps.locatie.tasks import update_locatie_zoek_field_task
 from django.contrib import admin, messages
+from django.contrib.gis import forms
 from django.contrib.gis.db import models
+from django.contrib.gis.geos import Point
 from django.forms.widgets import Textarea
+
+
+class AdresForm(forms.ModelForm):
+    latitude = forms.FloatField(
+        min_value=-90,
+        max_value=90,
+        required=True,
+    )
+    longitude = forms.FloatField(
+        min_value=-180,
+        max_value=180,
+        required=True,
+    )
+
+    class Meta(object):
+        model = Adres
+        exclude = []
+        widgets = {"geometrie": forms.HiddenInput()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        coordinates = self.initial.get("geometrie", None)
+        if isinstance(coordinates, Point):
+            self.initial["longitude"], self.initial["latitude"] = coordinates.tuple
+
+    def clean(self):
+        data = super().clean()
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+        data.get("geometrie")
+        if latitude and longitude:
+            data["geometrie"] = Point(longitude, latitude)
+        return data
 
 
 class GrafAdmin(admin.ModelAdmin):
@@ -60,6 +95,7 @@ class LocatieAdmin(admin.ModelAdmin):
 
 class AdresAdmin(admin.ModelAdmin):
     list_display = ("id", "uuid", "aangemaakt_op", "melding", "signaal", "straatnaam")
+    form = AdresForm
 
 
 class LichtmastAdmin(admin.ModelAdmin):
