@@ -1,6 +1,5 @@
 from collections import OrderedDict
 
-from django.db.models import Count
 from rest_framework.pagination import LimitOffsetPagination as DRFLimitOffsetPagination
 from rest_framework.response import Response
 
@@ -86,13 +85,13 @@ class LimitOffsetPagination(DRFLimitOffsetPagination):
                 .values_list(key, value_lookup_str, fallback_value_lookup_str, group)
                 .distinct(key)
             }
-            ff_dict = {
-                fl[0]: (value_lookup(fl[1], fl[0], fl[2], f), fl[3], fl[4])
-                for fl in f_qs.order_by(key)
-                .values_list(key, value_lookup_str, fallback_value_lookup_str, group)
-                .annotate(count=Count(key))
-            }
-            f_dict.update(ff_dict)
+            # ff_dict = {
+            #     fl[0]: (value_lookup(fl[1], fl[0], fl[2], f), fl[3], fl[4])
+            #     for fl in f_qs.order_by(key)
+            #     .values_list(key, value_lookup_str, fallback_value_lookup_str, group)
+            #     .annotate(count=Count(key))
+            # }
+            # f_dict.update(ff_dict)
             f_dict = {k: v for k, v in f_dict.items() if k}
             out[f[0]] = f_dict
         return out
