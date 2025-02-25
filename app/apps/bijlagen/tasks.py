@@ -3,6 +3,7 @@ import os
 import celery
 from celery import shared_task
 from celery.utils.log import get_task_logger
+from django.conf import settings
 
 logger = get_task_logger(__name__)
 
@@ -53,6 +54,7 @@ def task_minify_origineel_bijlage_bestand(self, bijlage_id):
     origineel_bestand_path = bijlage_instance.minify_origineel_bestand()
 
     os.remove(origineel_bestand_path)
+    os.path.join(settings.MEDIA_ROOT, origineel_bestand_path)
 
     bijlage_instance.save()
 

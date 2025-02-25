@@ -112,10 +112,7 @@ class Bijlage(BasisModel):
             if mt:
                 self.mimetype = mt[0]
             if self.mimetype == "image/heic":
-                print(self.bestand)
                 bestand = self._heic_to_jpeg(self.bestand)
-                print(bestand)
-                print(self.bestand)
                 self.is_afbeelding = True
 
             if self.is_afbeelding:
@@ -133,10 +130,8 @@ class Bijlage(BasisModel):
                         quality=80,
                     ).name
                     if self.mimetype == "image/heic":
-                        complete_path = f"/media/{bestand}"
                         print(f"remove: {bestand}")
-                        print(f"remove complete path: {complete_path}")
-                        os.remove(complete_path)
+                        os.remove(os.path.join(settings.MEDIA_ROOT, bestand))
                 except Exception as e:
                     raise Bijlage.AfbeeldingVersiesAanmakenFout(
                         f"aanmaken_afbeelding_versies: get_thumbnail fout: {e}"
