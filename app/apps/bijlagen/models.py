@@ -34,11 +34,15 @@ class Bijlage(BasisModel):
 
     mimetype = models.CharField(max_length=30, blank=False, null=False)
     is_afbeelding = models.BooleanField(default=False)
+    minified_op = models.DateTimeField(null=True, blank=True)
 
     class BestandPadFout(Exception):
         ...
 
     class AfbeeldingVersiesAanmakenFout(Exception):
+        ...
+
+    class MinifyOrigeelBestandFout(Exception):
         ...
 
     def _is_afbeelding(self):
@@ -71,6 +75,35 @@ class Bijlage(BasisModel):
                     paden.append(field.path)
         return paden
 
+    def minify_origineel_bestand(self):
+        mt = mimetypes.guess_type(self.bestand.path, strict=True)
+        if exists(self.bestand.path):
+            origineel_bestand_path = self.bestand.path
+            nieuw_bestand = origineel_bestand_path
+            self.is_afbeelding = self._is_afbeelding()
+            if mt:
+                self.mimetype = mt[0]
+            if self.mimetype == "image/heic":
+                nieuw_bestand = self._heic_to_jpeg(self.bestand)
+                self.is_afbeelding = True
+            if self.is_afbeelding:
+                try:
+                    self.bestand.name = get_thumbnail(
+                        nieuw_bestand,
+                        settings.THUMBNAIL_MINIFIED,
+                        format="JPEG",
+                        quality=80,
+                    ).name
+                    return origineel_bestand_path
+                except Exception as e:
+                    raise Bijlage.MinifyOrigeelBestandFout(
+                        f"minify_origineel_bestand: get_thumbnail fout: {e}"
+                    )
+        else:
+            raise Bijlage.BestandPadFout(
+                f"minify_origineel_bestand: bestand path bestaat niet, bijlage id: {self.pk}"
+            )
+
     def aanmaken_afbeelding_versies(self):
         mt = mimetypes.guess_type(self.bestand.path, strict=True)
         if exists(self.bestand.path):
@@ -79,7 +112,10 @@ class Bijlage(BasisModel):
             if mt:
                 self.mimetype = mt[0]
             if self.mimetype == "image/heic":
+                print(self.bestand)
                 bestand = self._heic_to_jpeg(self.bestand)
+                print(bestand)
+                print(self.bestand)
                 self.is_afbeelding = True
 
             if self.is_afbeelding:
@@ -96,6 +132,11 @@ class Bijlage(BasisModel):
                         format="JPEG",
                         quality=80,
                     ).name
+                    if self.mimetype == "image/heic":
+                        complete_path = f"/media/{bestand}"
+                        print(f"remove: {bestand}")
+                        print(f"remove complete path: {complete_path}")
+                        os.remove(complete_path)
                 except Exception as e:
                     raise Bijlage.AfbeeldingVersiesAanmakenFout(
                         f"aanmaken_afbeelding_versies: get_thumbnail fout: {e}"

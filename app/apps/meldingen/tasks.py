@@ -61,3 +61,19 @@ def task_notificatie_voor_melding_veranderd(
             f'task_notificatie_voor_melding_veranderd: applicatie:  {applicatie.naam}, bericht: {error.get("bericht")}, status code: {error.get("status_code")}'
         )
     return f"Applicatie naam: {applicatie.naam}, melding_url={melding_url}, notificatie_type={notificatie_type}"
+
+
+def task_minify_bijlage_bestanden(self, applicatie_id, melding_url, notificatie_type):
+    from apps.applicaties.models import Applicatie
+
+    applicatie = Applicatie.objects.get(pk=applicatie_id)
+    notificatie_response = applicatie.melding_veranderd_notificatie_voor_applicatie(
+        melding_url,
+        notificatie_type,
+    )
+    error = notificatie_response.get("error")
+    if error:
+        logger.error(
+            f'task_notificatie_voor_melding_veranderd: applicatie:  {applicatie.naam}, bericht: {error.get("bericht")}, status code: {error.get("status_code")}'
+        )
+    return f"Applicatie naam: {applicatie.naam}, melding_url={melding_url}, notificatie_type={notificatie_type}"

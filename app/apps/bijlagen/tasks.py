@@ -43,3 +43,17 @@ def task_verwijder_bestand(self, melding_url, pad):
     if os.path.isfile(pad):
         os.remove(pad)
     return f"Verwijder_bestand: melding_url={melding_url}, pad={pad}"
+
+
+@shared_task(bind=True)
+def task_minify_origineel_bijlage_bestand(self, bijlage_id):
+    from apps.bijlagen.models import Bijlage
+
+    bijlage_instance = Bijlage.objects.get(id=bijlage_id)
+    origineel_bestand_path = bijlage_instance.minify_origineel_bestand()
+
+    os.remove(origineel_bestand_path)
+
+    bijlage_instance.save()
+
+    return f"Bijlage id: {bijlage_instance.id}"
