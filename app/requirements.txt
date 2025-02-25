@@ -54,7 +54,7 @@ PyJWT<2.4.0
 django-session-timeout-joinup==1.0.0
 
 # development
-django-debug-toolbar==4.4.6
+django-debug-toolbar==5.0.1
 Faker==8.13.2
 
 # tests
