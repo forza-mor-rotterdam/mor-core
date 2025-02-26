@@ -147,15 +147,7 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = "__all_related__"
     filterset_class = MeldingFilter
     pre_filterset_class = MeldingPreFilter
-    filter_options_fields = (
-        (
-            "buurt",
-            "locaties_voor_melding__buurtnaam",
-            None,
-            None,
-            "locaties_voor_melding__wijknaam",
-        ),
-    )
+    filter_options_fields = ()
 
     def get_queryset(self):
         if self.action == "retrieve":
