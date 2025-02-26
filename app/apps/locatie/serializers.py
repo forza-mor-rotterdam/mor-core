@@ -106,4 +106,5 @@ class BuurtWijkSerializer(serializers.ModelSerializer):
         fields = (
             "buurtnaam",
             "wijknaam",
+            "plaatsnaam",
         )
