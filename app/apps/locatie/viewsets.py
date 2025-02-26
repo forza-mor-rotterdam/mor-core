@@ -7,6 +7,8 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+# from django.db import connection
+
 
 class LocatieViewSet(
     mixins.ListModelMixin,
@@ -28,7 +30,7 @@ class LocatieViewSet(
     @action(
         detail=False,
         methods=["get"],
-        url_path="buurten-met-wijken",
+        url_path="buurten",
         serializer_class=BuurtWijkSerializer,
     )
     def buurten_met_wijken(self, request):
@@ -36,14 +38,20 @@ class LocatieViewSet(
             queryset = (
                 self.filter_queryset(self.get_queryset())
                 .filter(
-                    primair=True,
                     buurtnaam__isnull=False,
                     wijknaam__isnull=False,
+                    plaatsnaam__isnull=False,
                 )
-                .values("buurtnaam", "wijknaam")
+                .values("buurtnaam", "wijknaam", "plaatsnaam")
                 .distinct()
-                .order_by("wijknaam", "buurtnaam")
+                .order_by("plaatsnaam", "wijknaam", "buurtnaam")
             )
+
+            # raw_sql = 'SELECT "locatie_locatie"."id", "locatie_locatie"."buurtnaam", "locatie_locatie"."wijknaam", "locatie_locatie"."plaatsnaam" FROM "locatie_locatie" WHERE ("locatie_locatie"."buurtnaam" IS NOT NULL AND "locatie_locatie"."plaatsnaam" IS NOT NULL AND "locatie_locatie"."wijknaam" IS NOT NULL) GROUP BY ("locatie_locatie"."buurtnaam", "locatie_locatie"."wijknaam", "locatie_locatie"."plaatsnaam", "locatie_locatie"."id") ORDER BY "locatie_locatie"."plaatsnaam" ASC, "locatie_locatie"."wijknaam" ASC, "locatie_locatie"."buurtnaam" ASC'
+            # queryset = (
+            #     self.filter_queryset(self.get_queryset())
+            #     .raw(raw_sql)
+            # )
 
             return Response(
                 BuurtWijkSerializer(
