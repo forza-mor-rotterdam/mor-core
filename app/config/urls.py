@@ -3,6 +3,7 @@ from apps.applicaties.viewsets import TaakapplicatieViewSet
 from apps.authenticatie.views import GetGebruikerAPIView, SetGebruikerAPIView
 from apps.bijlagen.viewsets import BijlageViewSet
 from apps.health.views import healthz
+from apps.locatie.viewsets import LocatieViewSet
 from apps.meldingen.views import (
     login_required_view,
     prometheus_django_metrics,
@@ -39,6 +40,7 @@ router.register(r"taakopdracht", TaakopdrachtViewSet, basename="taakopdracht")
 router.register(r"taakgebeurtenis", TaakgebeurtenisViewSet, basename="taakgebeurtenis")
 router.register(r"bijlage", BijlageViewSet, basename="bijlage")
 router.register(r"status", StatusViewSet, basename="status")
+router.register(r"locatie", LocatieViewSet, basename="locatie")
 
 urlpatterns = [
     path("api/v1/", include((router.urls, "app"), namespace="v1")),
