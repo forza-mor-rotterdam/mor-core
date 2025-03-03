@@ -98,3 +98,13 @@ class LichtmastSerializer(LichtmastBasisSerializer, serializers.ModelSerializer)
             "lichtmast_id",
             "geometrie",
         )
+
+
+class BuurtWijkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Locatie
+        fields = (
+            "buurtnaam",
+            "wijknaam",
+            "plaatsnaam",
+        )
