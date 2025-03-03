@@ -3,7 +3,6 @@ import os
 import celery
 from celery import shared_task
 from celery.utils.log import get_task_logger
-from django.conf import settings
 
 logger = get_task_logger(__name__)
 
@@ -47,14 +46,14 @@ def task_verwijder_bestand(self, melding_url, pad):
 
 
 @shared_task(bind=True)
-def task_minify_origineel_bijlage_bestand(self, bijlage_id):
+def task_bijlage_opruimen(self, bijlage_id):
     from apps.bijlagen.models import Bijlage
 
     bijlage_instance = Bijlage.objects.get(id=bijlage_id)
-    origineel_bestand_path = bijlage_instance.minify_origineel_bestand()
+    verwijder_bestanden = bijlage_instance.opruimen()
 
-    os.remove(origineel_bestand_path)
-    os.path.join(settings.MEDIA_ROOT, origineel_bestand_path)
+    for bestand_path in verwijder_bestanden:
+        os.remove(bestand_path)
 
     bijlage_instance.save()
 

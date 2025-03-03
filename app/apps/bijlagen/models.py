@@ -1,6 +1,7 @@
 import logging
 import mimetypes
 import os
+import shutil
 from os.path import exists
 
 from django.conf import settings
@@ -8,6 +9,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.sites.models import Site
+from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 from pillow_heif import register_heif_opener
 from rest_framework.reverse import reverse
@@ -34,7 +36,7 @@ class Bijlage(BasisModel):
 
     mimetype = models.CharField(max_length=30, blank=False, null=False)
     is_afbeelding = models.BooleanField(default=False)
-    minified_op = models.DateTimeField(null=True, blank=True)
+    opgeruimd_op = models.DateTimeField(null=True, blank=True)
 
     class BestandPadFout(Exception):
         ...
@@ -75,34 +77,34 @@ class Bijlage(BasisModel):
                     paden.append(field.path)
         return paden
 
-    def minify_origineel_bestand(self):
-        mt = mimetypes.guess_type(self.bestand.path, strict=True)
-        if exists(self.bestand.path):
-            origineel_bestand_path = self.bestand.path
-            nieuw_bestand = origineel_bestand_path
-            self.is_afbeelding = self._is_afbeelding()
-            if mt:
-                self.mimetype = mt[0]
-            if self.mimetype == "image/heic":
-                nieuw_bestand = self._heic_to_jpeg(self.bestand)
-                self.is_afbeelding = True
-            if self.is_afbeelding:
-                try:
-                    self.bestand.name = get_thumbnail(
-                        nieuw_bestand,
-                        settings.THUMBNAIL_MINIFIED,
-                        format="JPEG",
-                        quality=80,
-                    ).name
-                    return origineel_bestand_path
-                except Exception as e:
-                    raise Bijlage.MinifyOrigeelBestandFout(
-                        f"minify_origineel_bestand: get_thumbnail fout: {e}"
-                    )
-        else:
-            raise Bijlage.BestandPadFout(
-                f"minify_origineel_bestand: bestand path bestaat niet, bijlage id: {self.pk}"
+    def opruimen(self):
+        verwijder_bestanden = []
+        if self.is_afbeelding and self.afbeelding:
+            bestand_path = self.bestand.path
+            afbeelding_path = self.afbeelding.path
+            print(f"bestand size: {os.path.getsize(bestand_path)}")
+            print(f"afbeelding verkleind path: {self.afbeelding_verkleind.path}")
+            print(
+                f"afbeelding verkleind size: {os.path.getsize(self.afbeelding_verkleind.path)}"
             )
+            print(f"afbeelding size: {os.path.getsize(afbeelding_path)}")
+            if os.path.getsize(bestand_path) > os.path.getsize(afbeelding_path):
+                new_bestand_path = f"{os.path.splitext(bestand_path)[0]}.jpg"
+                shutil.copy2(afbeelding_path, new_bestand_path)
+                self.bestand = new_bestand_path
+
+                print(f"afbeelding_path: {afbeelding_path}")
+                print(f"new_bestand_path: {new_bestand_path}")
+                print(exists(new_bestand_path))
+                print(os.path.splitext(bestand_path))
+                if os.path.splitext(bestand_path)[1] == ".heic":
+                    verwijder_bestanden.append(bestand_path)
+            if self.afbeelding_verkleind:
+                verwijder_bestanden.append(self.afbeelding_verkleind.path)
+            verwijder_bestanden.append(self.afbeelding.path)
+            self.opgeruimd_op = timezone.now()
+        print(verwijder_bestanden)
+        return verwijder_bestanden
 
     def aanmaken_afbeelding_versies(self):
         mt = mimetypes.guess_type(self.bestand.path, strict=True)

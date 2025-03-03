@@ -1,7 +1,4 @@
-from apps.bijlagen.tasks import (
-    task_aanmaken_afbeelding_versies,
-    task_minify_origineel_bijlage_bestand,
-)
+from apps.bijlagen.tasks import task_aanmaken_afbeelding_versies, task_bijlage_opruimen
 from apps.meldingen.models import Bijlage
 from django.contrib import admin
 
@@ -12,10 +9,10 @@ def action_aanmaken_afbeelding_versies(modeladmin, request, queryset):
         task_aanmaken_afbeelding_versies.delay(bijlage.id)
 
 
-@admin.action(description="Minify origeel bestand voor selectie")
-def action_minify_origineel_bijlage_bestanden(modeladmin, request, queryset):
+@admin.action(description="Bijlage opruimen")
+def action_bijlage_opruimen(modeladmin, request, queryset):
     for bijlage in queryset.all():
-        task_minify_origineel_bijlage_bestand.delay(bijlage.id)
+        task_bijlage_opruimen.delay(bijlage.id)
 
 
 class BijlageAdmin(admin.ModelAdmin):
@@ -31,7 +28,7 @@ class BijlageAdmin(admin.ModelAdmin):
     )
     actions = (
         action_aanmaken_afbeelding_versies,
-        action_minify_origineel_bijlage_bestanden,
+        action_bijlage_opruimen,
     )
 
     def get_queryset(self, request):
