@@ -51,10 +51,9 @@ def task_bijlage_opruimen(self, bijlage_id):
 
     bijlage_instance = Bijlage.objects.get(id=bijlage_id)
     verwijder_bestanden = bijlage_instance.opruimen()
+    bijlage_instance.save()
 
     for bestand_path in verwijder_bestanden:
         os.remove(bestand_path)
-
-    bijlage_instance.save()
 
     return f"Bijlage id: {bijlage_instance.id}"

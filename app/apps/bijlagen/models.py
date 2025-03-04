@@ -82,6 +82,7 @@ class Bijlage(BasisModel):
         if self.is_afbeelding and self.afbeelding:
             bestand_path = self.bestand.path
             afbeelding_path = self.afbeelding.path
+            bestand_name = self.bestand.name
             print(f"bestand size: {os.path.getsize(bestand_path)}")
             print(f"afbeelding verkleind path: {self.afbeelding_verkleind.path}")
             print(
@@ -89,9 +90,10 @@ class Bijlage(BasisModel):
             )
             print(f"afbeelding size: {os.path.getsize(afbeelding_path)}")
             if os.path.getsize(bestand_path) > os.path.getsize(afbeelding_path):
-                new_bestand_path = f"{os.path.splitext(bestand_path)[0]}.jpg"
+                new_bestand_name = f"{os.path.splitext(bestand_name)[0]}.jpg"
+                new_bestand_path = os.path.join(settings.MEDIA_ROOT, new_bestand_name)
                 shutil.copy2(afbeelding_path, new_bestand_path)
-                self.bestand = new_bestand_path
+                self.bestand = new_bestand_name
 
                 print(f"afbeelding_path: {afbeelding_path}")
                 print(f"new_bestand_path: {new_bestand_path}")
@@ -101,7 +103,9 @@ class Bijlage(BasisModel):
                     verwijder_bestanden.append(bestand_path)
             if self.afbeelding_verkleind:
                 verwijder_bestanden.append(self.afbeelding_verkleind.path)
+                self.afbeelding_verkleind = None
             verwijder_bestanden.append(self.afbeelding.path)
+            self.afbeelding = None
             self.opgeruimd_op = timezone.now()
         print(verwijder_bestanden)
         return verwijder_bestanden
