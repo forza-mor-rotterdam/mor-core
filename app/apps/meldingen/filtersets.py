@@ -234,9 +234,7 @@ class MeldingFilter(BasisFilter):
                 )
                 combined_q &= (
                     # MeldR-nummer fields
-                    Q(meta__meldingsnummerField__iregex=term)
-                    # | Q(meta__morId__iregex=term) Not used, previously needed for msb import meldingen
-                    | Q(signalen_voor_melding__bron_signaal_id__iregex=term)
+                    Q(signalen_voor_melding__bron_signaal_id__iregex=term)
                     # Melder fields
                     | Q(signalen_voor_melding__melder__naam__iregex=term)
                     # | Q(signalen_voor_melding__melder__voornaam__iregex=term) Currently not used
@@ -247,13 +245,6 @@ class MeldingFilter(BasisFilter):
                     | Q(
                         signalen_voor_melding__locaties_voor_signaal__locatie_zoek_field__icontains=term
                     )
-                    # Old meta fields
-                    # | Q(meta__email_melder__iregex=term)
-                    # | Q(meta__telefoon_melder__iregex=term)
-                    # | Q(meta__naam_melder__iregex=term)
-                    # | Q(meta__melderTelefoonField__iregex=term)
-                    # | Q(meta__melderEmailField__iregex=term)
-                    # | Q(meta__melderNaamField__iregex=term)
                 )
             return queryset.filter(combined_q).distinct()
 
