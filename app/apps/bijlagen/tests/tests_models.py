@@ -13,6 +13,9 @@ class BijlageCase(TestCase):
         shutil.copy2(
             "/app/apps/bijlagen/tests/bestanden/afbeelding.jpg", "/media/afbeelding.jpg"
         )
+        shutil.copy2(
+            "/app/apps/bijlagen/tests/bestanden/IMG_1714.HEIC", "/media/afbeelding.heic"
+        )
         melding = Melding.objects.create(origineel_aangemaakt=timezone.now())
         Bijlage.objects.create(
             bestand="/media/afbeelding.jpg",
@@ -27,6 +30,8 @@ class BijlageCase(TestCase):
 
     def test_aanmaken_afbeelding_versie(self):
         bijlage = Bijlage.objects.first()
+        bijlage.aanmaken_afbeelding_versies()
+        bijlage.save()
 
         self.assertTrue(bijlage.afbeelding)
         self.assertTrue(os.path.exists(bijlage.afbeelding.path))
@@ -39,7 +44,7 @@ class BijlageCase(TestCase):
         self.assertTrue(bijlage.afbeelding_verkleind)
         self.assertTrue(os.path.exists(bijlage.afbeelding_verkleind.path))
 
-    def test_opruimen(self):
+    def test_opruimen_jpg(self):
         bijlage = Bijlage.objects.first()
 
         bijlage.aanmaken_afbeelding_versies()
@@ -47,8 +52,28 @@ class BijlageCase(TestCase):
 
         bijlage = Bijlage.objects.get(id=bijlage.id)
 
-        bijlage.opruimen()
+        verwijder_bestanden = bijlage.opruimen()
         bijlage.save()
 
         self.assertFalse(bijlage.afbeelding)
         self.assertFalse(bijlage.afbeelding_verkleind)
+        self.assertEqual(len(verwijder_bestanden), 2)
+
+    def test_opruimen_heic(self):
+        melding = Melding.objects.first()
+        bijlage = Bijlage.objects.create(
+            bestand="/media/afbeelding.heic",
+            content_object=melding,
+        )
+
+        bijlage.aanmaken_afbeelding_versies()
+        bijlage.save()
+
+        bijlage = Bijlage.objects.get(id=bijlage.id)
+
+        verwijder_bestanden = bijlage.opruimen()
+        bijlage.save()
+
+        self.assertFalse(bijlage.afbeelding)
+        self.assertFalse(bijlage.afbeelding_verkleind)
+        self.assertEqual(len(verwijder_bestanden), 3)
