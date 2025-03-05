@@ -1,4 +1,4 @@
-from apps.bijlagen.tasks import task_aanmaken_afbeelding_versies
+from apps.bijlagen.tasks import task_aanmaken_afbeelding_versies, task_bijlage_opruimen
 from apps.meldingen.models import Bijlage
 from django.contrib import admin
 
@@ -7,6 +7,13 @@ from django.contrib import admin
 def action_aanmaken_afbeelding_versies(modeladmin, request, queryset):
     for bijlage in queryset.all():
         task_aanmaken_afbeelding_versies.delay(bijlage.id)
+
+
+@admin.action(description="Bijlage opruimen")
+def action_bijlage_opruimen(modeladmin, request, queryset):
+    for bijlage in queryset.all():
+        # print(bijlage.opruimen())
+        task_bijlage_opruimen.delay(bijlage.id)
 
 
 class BijlageAdmin(admin.ModelAdmin):
@@ -19,8 +26,12 @@ class BijlageAdmin(admin.ModelAdmin):
         "mimetype",
         "content_object",
         "afbeelding",
+        "afbeelding_verkleind",
     )
-    actions = (action_aanmaken_afbeelding_versies,)
+    actions = (
+        action_aanmaken_afbeelding_versies,
+        action_bijlage_opruimen,
+    )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

@@ -1,6 +1,7 @@
 import logging
 import mimetypes
 import os
+import shutil
 from os.path import exists
 
 from django.conf import settings
@@ -8,6 +9,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.sites.models import Site
+from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 from pillow_heif import register_heif_opener
 from rest_framework.reverse import reverse
@@ -34,11 +36,15 @@ class Bijlage(BasisModel):
 
     mimetype = models.CharField(max_length=30, blank=False, null=False)
     is_afbeelding = models.BooleanField(default=False)
+    opgeruimd_op = models.DateTimeField(null=True, blank=True)
 
     class BestandPadFout(Exception):
         ...
 
     class AfbeeldingVersiesAanmakenFout(Exception):
+        ...
+
+    class MinifyOrigeelBestandFout(Exception):
         ...
 
     def _is_afbeelding(self):
@@ -71,6 +77,39 @@ class Bijlage(BasisModel):
                     paden.append(field.path)
         return paden
 
+    @property
+    def afbeelding_versies_ontbreken(self):
+        return (
+            not self.afbeelding.name
+            or not self.afbeelding.storage.exists(self.afbeelding.name)
+        ) or (
+            not self.afbeelding_verkleind.name
+            or not self.afbeelding_verkleind.storage.exists(
+                self.afbeelding_verkleind.name
+            )
+        )
+
+    def opruimen(self):
+        verwijder_bestanden = []
+        if self.is_afbeelding and self.afbeelding:
+            bestand_path = self.bestand.path
+            afbeelding_path = self.afbeelding.path
+            bestand_name = self.bestand.name
+            if os.path.getsize(bestand_path) > os.path.getsize(afbeelding_path):
+                new_bestand_name = f"{os.path.splitext(bestand_name)[0]}.jpg"
+                new_bestand_path = os.path.join(settings.MEDIA_ROOT, new_bestand_name)
+                shutil.copy2(afbeelding_path, new_bestand_path)
+                self.bestand = new_bestand_name
+                if os.path.splitext(bestand_path)[1] == ".heic":
+                    verwijder_bestanden.append(bestand_path)
+            self.opgeruimd_op = timezone.now()
+        return verwijder_bestanden
+
+    def filefield_leegmaken(self, field):
+        if bool(field.name) and field.storage.exists(field.name):
+            os.remove(field.path)
+        field.name = None
+
     def aanmaken_afbeelding_versies(self):
         mt = mimetypes.guess_type(self.bestand.path, strict=True)
         if exists(self.bestand.path):
@@ -81,7 +120,6 @@ class Bijlage(BasisModel):
             if self.mimetype == "image/heic":
                 bestand = self._heic_to_jpeg(self.bestand)
                 self.is_afbeelding = True
-
             if self.is_afbeelding:
                 try:
                     self.afbeelding_verkleind.name = get_thumbnail(
@@ -96,6 +134,9 @@ class Bijlage(BasisModel):
                         format="JPEG",
                         quality=80,
                     ).name
+                    if self.mimetype == "image/heic":
+                        print(f"remove: {bestand}")
+                        os.remove(os.path.join(settings.MEDIA_ROOT, bestand))
                 except Exception as e:
                     raise Bijlage.AfbeeldingVersiesAanmakenFout(
                         f"aanmaken_afbeelding_versies: get_thumbnail fout: {e}"

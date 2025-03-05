@@ -373,12 +373,17 @@ SESSION_EXPIRE_AFTER_LAST_ACTIVITY_GRACE_PERIOD = int(
     os.getenv("SESSION_EXPIRE_AFTER_LAST_ACTIVITY_GRACE_PERIOD", "1800")
 )
 
-
+DEFAULT_FILE_STORAGE = "utils.storage.FileSystemOverwriteStorage"
+THUMBNAIL_CACHE_TIMEOUT = 0
+THUMBNAIL_FORCE_OVERWRITE = True
 THUMBNAIL_BACKEND = "utils.images.ThumbnailBackend"
 THUMBNAIL_PREFIX = "afbeeldingen"
 THUMBNAIL_KLEIN = "128x128"
 THUMBNAIL_STANDAARD = "1480x1480"
 BESTANDEN_PREFIX = "bestanden"
+MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS = int(
+    os.getenv("MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS", "5184000")
+)
 
 
 def show_debug_toolbar(request):
@@ -443,7 +448,7 @@ LOGGING = {
         },
         "celery": {
             "handlers": ["console", "file"],
-            "level": "WARNING" if not DEBUG else "DEBUG",
+            "level": "WARNING" if not DEBUG else "INFO",
             "propagate": False,
         },
     },
