@@ -21,12 +21,13 @@ class BijlageAdmin(admin.ModelAdmin):
         "id",
         "uuid",
         "aangemaakt_op",
-        "bestand",
         "is_afbeelding",
         "mimetype",
         "content_object",
+        "bestand",
         "afbeelding",
         "afbeelding_verkleind",
+        "opgeruimd_op",
     )
     actions = (
         action_aanmaken_afbeelding_versies,
