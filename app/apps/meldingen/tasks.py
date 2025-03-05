@@ -97,7 +97,6 @@ def task_bijlages_voor_geselecteerde_meldingen_opruimen(self, melding_ids):
             one_off=True,
             args=[melding.id],
         )
-        task_bijlages_voor_melding_opruimen.delay(melding.id)
 
     return melding_ids
 
