@@ -32,6 +32,9 @@ def task_aanmaken_afbeelding_versies(self, bijlage_id):
     from apps.bijlagen.models import Bijlage
 
     bijlage_instance = Bijlage.objects.get(id=bijlage_id)
+    bijlage_instance.filefield_leegmaken(bijlage_instance.afbeelding)
+    bijlage_instance.filefield_leegmaken(bijlage_instance.afbeelding_verkleind)
+    bijlage_instance.save()
     bijlage_instance.aanmaken_afbeelding_versies()
     bijlage_instance.save()
 
@@ -51,6 +54,8 @@ def task_bijlage_opruimen(self, bijlage_id):
 
     bijlage_instance = Bijlage.objects.get(id=bijlage_id)
     verwijder_bestanden = bijlage_instance.opruimen()
+    bijlage_instance.filefield_leegmaken(bijlage_instance.afbeelding)
+    bijlage_instance.filefield_leegmaken(bijlage_instance.afbeelding_verkleind)
     bijlage_instance.save()
 
     for bestand_path in verwijder_bestanden:

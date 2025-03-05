@@ -30,6 +30,9 @@ class BijlageCase(TestCase):
 
     def test_aanmaken_afbeelding_versie(self):
         bijlage = Bijlage.objects.first()
+        bijlage.filefield_leegmaken(bijlage.afbeelding)
+        bijlage.filefield_leegmaken(bijlage.afbeelding_verkleind)
+        bijlage.save()
         bijlage.aanmaken_afbeelding_versies()
         bijlage.save()
 
@@ -44,20 +47,58 @@ class BijlageCase(TestCase):
         self.assertTrue(bijlage.afbeelding_verkleind)
         self.assertTrue(os.path.exists(bijlage.afbeelding_verkleind.path))
 
+    def test_aanmaken_afbeelding_versies_empty_imagefields(self):
+        bijlage = Bijlage.objects.first()
+        bijlage.aanmaken_afbeelding_versies()
+        bijlage.save()
+
+        bijlage.afbeelding = None
+        bijlage.afbeelding_verkleind = None
+        bijlage.save()
+
+        bijlage.aanmaken_afbeelding_versies()
+        bijlage.save()
+
+        self.assertTrue(bijlage.afbeelding)
+        self.assertTrue(bijlage.afbeelding_verkleind)
+        self.assertTrue(os.path.exists(bijlage.afbeelding.path))
+        self.assertTrue(os.path.exists(bijlage.afbeelding_verkleind.path))
+
+    def test_aanmaken_afbeelding_versies_file_removed(self):
+        bijlage = Bijlage.objects.first()
+        bijlage.aanmaken_afbeelding_versies()
+        bijlage.save()
+
+        os.remove(bijlage.afbeelding.path)
+        os.remove(bijlage.afbeelding_verkleind.path)
+
+        bijlage.aanmaken_afbeelding_versies()
+        bijlage.save()
+
+        self.assertTrue(bijlage.afbeelding)
+        self.assertTrue(bijlage.afbeelding_verkleind)
+        self.assertTrue(os.path.exists(bijlage.afbeelding.path))
+        self.assertTrue(os.path.exists(bijlage.afbeelding_verkleind.path))
+
     def test_opruimen_jpg(self):
         bijlage = Bijlage.objects.first()
 
+        bijlage.filefield_leegmaken(bijlage.afbeelding)
+        bijlage.filefield_leegmaken(bijlage.afbeelding_verkleind)
+        bijlage.save()
         bijlage.aanmaken_afbeelding_versies()
         bijlage.save()
 
         bijlage = Bijlage.objects.get(id=bijlage.id)
 
         verwijder_bestanden = bijlage.opruimen()
+        bijlage.filefield_leegmaken(bijlage.afbeelding)
+        bijlage.filefield_leegmaken(bijlage.afbeelding_verkleind)
         bijlage.save()
 
         self.assertFalse(bijlage.afbeelding)
         self.assertFalse(bijlage.afbeelding_verkleind)
-        self.assertEqual(len(verwijder_bestanden), 2)
+        self.assertEqual(len(verwijder_bestanden), 0)
 
     def test_opruimen_heic(self):
         melding = Melding.objects.first()
@@ -66,14 +107,19 @@ class BijlageCase(TestCase):
             content_object=melding,
         )
 
+        bijlage.filefield_leegmaken(bijlage.afbeelding)
+        bijlage.filefield_leegmaken(bijlage.afbeelding_verkleind)
+        bijlage.save()
         bijlage.aanmaken_afbeelding_versies()
         bijlage.save()
 
         bijlage = Bijlage.objects.get(id=bijlage.id)
 
         verwijder_bestanden = bijlage.opruimen()
+        bijlage.filefield_leegmaken(bijlage.afbeelding)
+        bijlage.filefield_leegmaken(bijlage.afbeelding_verkleind)
         bijlage.save()
 
         self.assertFalse(bijlage.afbeelding)
         self.assertFalse(bijlage.afbeelding_verkleind)
-        self.assertEqual(len(verwijder_bestanden), 3)
+        self.assertEqual(len(verwijder_bestanden), 1)

@@ -77,38 +77,38 @@ class Bijlage(BasisModel):
                     paden.append(field.path)
         return paden
 
+    @property
+    def afbeelding_versies_ontbreken(self):
+        return (
+            not self.afbeelding.name
+            or not self.afbeelding.storage.exists(self.afbeelding.name)
+        ) or (
+            not self.afbeelding_verkleind.name
+            or not self.afbeelding_verkleind.storage.exists(
+                self.afbeelding_verkleind.name
+            )
+        )
+
     def opruimen(self):
         verwijder_bestanden = []
         if self.is_afbeelding and self.afbeelding:
             bestand_path = self.bestand.path
             afbeelding_path = self.afbeelding.path
             bestand_name = self.bestand.name
-            print(f"bestand size: {os.path.getsize(bestand_path)}")
-            print(f"afbeelding verkleind path: {self.afbeelding_verkleind.path}")
-            print(
-                f"afbeelding verkleind size: {os.path.getsize(self.afbeelding_verkleind.path)}"
-            )
-            print(f"afbeelding size: {os.path.getsize(afbeelding_path)}")
             if os.path.getsize(bestand_path) > os.path.getsize(afbeelding_path):
                 new_bestand_name = f"{os.path.splitext(bestand_name)[0]}.jpg"
                 new_bestand_path = os.path.join(settings.MEDIA_ROOT, new_bestand_name)
                 shutil.copy2(afbeelding_path, new_bestand_path)
                 self.bestand = new_bestand_name
-
-                print(f"afbeelding_path: {afbeelding_path}")
-                print(f"new_bestand_path: {new_bestand_path}")
-                print(exists(new_bestand_path))
-                print(os.path.splitext(bestand_path))
                 if os.path.splitext(bestand_path)[1] == ".heic":
                     verwijder_bestanden.append(bestand_path)
-            if self.afbeelding_verkleind:
-                verwijder_bestanden.append(self.afbeelding_verkleind.path)
-                self.afbeelding_verkleind = None
-            verwijder_bestanden.append(self.afbeelding.path)
-            self.afbeelding = None
             self.opgeruimd_op = timezone.now()
-        print(verwijder_bestanden)
         return verwijder_bestanden
+
+    def filefield_leegmaken(self, field):
+        if bool(field.name) and field.storage.exists(field.name):
+            os.remove(field.path)
+        field.name = None
 
     def aanmaken_afbeelding_versies(self):
         mt = mimetypes.guess_type(self.bestand.path, strict=True)
@@ -120,7 +120,6 @@ class Bijlage(BasisModel):
             if self.mimetype == "image/heic":
                 bestand = self._heic_to_jpeg(self.bestand)
                 self.is_afbeelding = True
-
             if self.is_afbeelding:
                 try:
                     self.afbeelding_verkleind.name = get_thumbnail(

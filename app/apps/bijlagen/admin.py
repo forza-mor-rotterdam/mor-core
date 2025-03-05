@@ -26,6 +26,7 @@ class BijlageAdmin(admin.ModelAdmin):
         "mimetype",
         "content_object",
         "afbeelding",
+        "afbeelding_verkleind",
     )
     actions = (
         action_aanmaken_afbeelding_versies,
