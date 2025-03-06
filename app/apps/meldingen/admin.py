@@ -1,3 +1,5 @@
+import logging
+
 from apps.meldingen.admin_filters import (
     AfgeslotenOpFilter,
     OnderwerpenFilter,
@@ -10,7 +12,10 @@ from apps.meldingen.tasks import (
     task_notificatie_voor_signaal_melding_afgesloten,
 )
 from apps.status.models import Status
+from django.conf import settings
 from django.contrib import admin
+
+logger = logging.getLogger(__name__)
 
 
 @admin.action(description="Melding met alle relaties verwijderen")
@@ -32,6 +37,7 @@ def action_notificatie_voor_signaal_melding_afgesloten(modeladmin, request, quer
 
 @admin.action(description="Melding bijlages opruimen")
 def action_melding_bijlages_opruimen(modeladmin, request, queryset):
+    logger.info(f"settings.ENVIRONMENT: {settings.ENVIRONMENT}")
     task_bijlages_voor_geselecteerde_meldingen_opruimen.delay(
         list(queryset.filter(afgesloten_op__isnull=False).values_list("id", flat=True))
     )
