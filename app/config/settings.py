@@ -384,7 +384,7 @@ BESTANDEN_PREFIX = "bestanden"
 MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS = int(
     os.getenv(
         "MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS",
-        "3600" if ENVIRONMENT == "test" else "3600",
+        "3600" if ENVIRONMENT == "acceptance" else "2592000",
     )
 )
 
