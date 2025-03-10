@@ -89,7 +89,6 @@ jobs:
           build-args: |
             GIT_SHA=${{ github.sha }}
             DEPLOY_DATE=${{ steps.get_date.outputs.DATE }}
-            ENVIRONMENT=acceptance
 
       - name: Build and push nginx Docker image
         uses: docker/build-push-action@v3

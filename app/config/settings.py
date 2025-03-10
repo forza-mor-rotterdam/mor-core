@@ -196,7 +196,7 @@ DATABASES.update(
     {
         "alternate": DEFAULT_DATABASE,
     }
-    if ENVIRONMENT in ["test", "development"]
+    if ENVIRONMENT in ["unittest", "development"]
     else {}
 )
 DATABASE_ROUTERS = ["config.routers.DatabaseRouter"]
@@ -215,7 +215,7 @@ CELERY_WORKER_CONCURRENCY = 2
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 20
 CELERY_WORKER_MAX_MEMORY_PER_CHILD = 200000
 
-if ENVIRONMENT in ["test", "development"]:
+if ENVIRONMENT in ["unittest", "development"]:
     DJANGO_TEST_USERNAME = os.getenv("DJANGO_TEST_USERNAME", "test")
     DJANGO_TEST_EMAIL = os.getenv("DJANGO_TEST_EMAIL", "test@test.com")
     DJANGO_TEST_PASSWORD = os.getenv("DJANGO_TEST_PASSWORD", "insecure")
@@ -384,7 +384,7 @@ BESTANDEN_PREFIX = "bestanden"
 MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS = int(
     os.getenv(
         "MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS",
-        "3600" if ENVIRONMENT == "acceptance" else "2592000",
+        "3600" if ENVIRONMENT != "production" else "2592000",
     )
 )
 
