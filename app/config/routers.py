@@ -19,7 +19,7 @@ class DatabaseRouter:
     def _get_db(*args, **kwargs):
         db = (
             get_active_db()
-            if settings.ENVIRONMENT not in ["test"]
+            if settings.ENVIRONMENT not in ["unittest"]
             else settings.DEFAULT_DATABASE_KEY
         )
         return db

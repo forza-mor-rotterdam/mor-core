@@ -92,12 +92,10 @@ class BijlageCase(TestCase):
         bijlage = Bijlage.objects.get(id=bijlage.id)
 
         verwijder_bestanden = bijlage.opruimen()
-        bijlage.filefield_leegmaken(bijlage.afbeelding)
-        bijlage.filefield_leegmaken(bijlage.afbeelding_verkleind)
         bijlage.save()
 
-        self.assertFalse(bijlage.afbeelding)
-        self.assertFalse(bijlage.afbeelding_verkleind)
+        self.assertTrue(bijlage.afbeelding)
+        self.assertTrue(bijlage.afbeelding_verkleind)
         self.assertEqual(len(verwijder_bestanden), 0)
 
     def test_opruimen_heic(self):
@@ -116,10 +114,8 @@ class BijlageCase(TestCase):
         bijlage = Bijlage.objects.get(id=bijlage.id)
 
         verwijder_bestanden = bijlage.opruimen()
-        bijlage.filefield_leegmaken(bijlage.afbeelding)
-        bijlage.filefield_leegmaken(bijlage.afbeelding_verkleind)
         bijlage.save()
 
-        self.assertFalse(bijlage.afbeelding)
-        self.assertFalse(bijlage.afbeelding_verkleind)
+        self.assertTrue(bijlage.afbeelding)
+        self.assertTrue(bijlage.afbeelding_verkleind)
         self.assertEqual(len(verwijder_bestanden), 1)

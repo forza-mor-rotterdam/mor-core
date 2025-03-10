@@ -100,7 +100,8 @@ class Bijlage(BasisModel):
                 new_bestand_path = os.path.join(settings.MEDIA_ROOT, new_bestand_name)
                 shutil.copy2(afbeelding_path, new_bestand_path)
                 self.bestand = new_bestand_name
-                if os.path.splitext(bestand_path)[1] == ".heic":
+                _, ext = os.path.splitext(bestand_path)
+                if ext == ".heic":
                     verwijder_bestanden.append(bestand_path)
             self.opgeruimd_op = timezone.now()
         return verwijder_bestanden

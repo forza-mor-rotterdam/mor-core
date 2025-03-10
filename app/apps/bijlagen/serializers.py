@@ -1,6 +1,5 @@
 import filetype
 from apps.bijlagen.models import Bijlage
-from apps.bijlagen.tasks import task_aanmaken_afbeelding_versies
 from drf_extra_fields.fields import Base64FileField
 from rest_framework import serializers
 
@@ -24,13 +23,6 @@ class BijlageSerializer(serializers.ModelSerializer):
     afbeelding_verkleind_relative_url = serializers.SerializerMethodField()
 
     def get_afbeelding_relative_url(self, obj):
-        if (
-            obj.afbeelding_versies_ontbreken
-            and obj.bestand.name
-            and obj.bestand.storage.exists(obj.bestand.name)
-            and obj.is_afbeelding
-        ):
-            task_aanmaken_afbeelding_versies.delay(obj.id)
         return obj.afbeelding.url if obj.afbeelding else None
 
     def get_afbeelding_verkleind_relative_url(self, obj):

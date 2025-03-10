@@ -12,7 +12,6 @@ def action_aanmaken_afbeelding_versies(modeladmin, request, queryset):
 @admin.action(description="Bijlage opruimen")
 def action_bijlage_opruimen(modeladmin, request, queryset):
     for bijlage in queryset.all():
-        # print(bijlage.opruimen())
         task_bijlage_opruimen.delay(bijlage.id)
 
 
