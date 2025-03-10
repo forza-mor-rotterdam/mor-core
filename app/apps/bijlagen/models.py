@@ -91,7 +91,7 @@ class Bijlage(BasisModel):
 
     def opruimen(self):
         verwijder_bestanden = []
-        if self.is_afbeelding and self.afbeelding:
+        if self.is_afbeelding and self.afbeelding and not self.opgeruimd_op:
             bestand_path = self.bestand.path
             afbeelding_path = self.afbeelding.path
             bestand_name = self.bestand.name

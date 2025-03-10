@@ -53,10 +53,12 @@ def task_bijlage_opruimen(self, bijlage_id):
     from apps.bijlagen.models import Bijlage
 
     bijlage_instance = Bijlage.objects.get(id=bijlage_id)
-    verwijder_bestanden = bijlage_instance.opruimen()
-    bijlage_instance.save()
+    if not bijlage_instance.opgeruimd_op:
+        verwijder_bestanden = bijlage_instance.opruimen()
+        bijlage_instance.save()
 
-    for bestand_path in verwijder_bestanden:
-        os.remove(bestand_path)
+        for bestand_path in verwijder_bestanden:
+            os.remove(bestand_path)
 
-    return f"Bijlage id: {bijlage_instance.id}"
+        return f"Bijlage id: {bijlage_instance.id}"
+    return f"Bijlage met id={bijlage_instance.id}, was al opgeruimd"
