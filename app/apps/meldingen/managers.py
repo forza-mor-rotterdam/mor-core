@@ -95,7 +95,9 @@ class MeldingManager(models.Manager):
                 for locatie in signaal.locaties_voor_signaal.all():
                     melding.locaties_voor_melding.add(locatie)
 
-                first_locatie = signaal.locaties_voor_signaal.first()
+                first_locatie = signaal.locaties_voor_signaal.filter(
+                    geometrie__isnull=False
+                ).first()
                 if first_locatie:
                     first_locatie.primair = True
                     first_locatie.save()

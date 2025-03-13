@@ -103,7 +103,6 @@ INSTALLED_APPS = (
     "apps.instellingen",
 )
 
-
 MIDDLEWARE = (
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -197,7 +196,7 @@ DATABASES.update(
     {
         "alternate": DEFAULT_DATABASE,
     }
-    if ENVIRONMENT in ["test", "development"]
+    if ENVIRONMENT in ["unittest", "development"]
     else {}
 )
 DATABASE_ROUTERS = ["config.routers.DatabaseRouter"]
@@ -216,7 +215,7 @@ CELERY_WORKER_CONCURRENCY = 2
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 20
 CELERY_WORKER_MAX_MEMORY_PER_CHILD = 200000
 
-if ENVIRONMENT in ["test", "development"]:
+if ENVIRONMENT in ["unittest", "development"]:
     DJANGO_TEST_USERNAME = os.getenv("DJANGO_TEST_USERNAME", "test")
     DJANGO_TEST_EMAIL = os.getenv("DJANGO_TEST_EMAIL", "test@test.com")
     DJANGO_TEST_PASSWORD = os.getenv("DJANGO_TEST_PASSWORD", "insecure")
@@ -374,22 +373,49 @@ SESSION_EXPIRE_AFTER_LAST_ACTIVITY_GRACE_PERIOD = int(
     os.getenv("SESSION_EXPIRE_AFTER_LAST_ACTIVITY_GRACE_PERIOD", "1800")
 )
 
-
+DEFAULT_FILE_STORAGE = "utils.storage.FileSystemOverwriteStorage"
+THUMBNAIL_CACHE_TIMEOUT = 0
+THUMBNAIL_FORCE_OVERWRITE = True
 THUMBNAIL_BACKEND = "utils.images.ThumbnailBackend"
 THUMBNAIL_PREFIX = "afbeeldingen"
 THUMBNAIL_KLEIN = "128x128"
 THUMBNAIL_STANDAARD = "1480x1480"
 BESTANDEN_PREFIX = "bestanden"
+MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS = int(
+    os.getenv(
+        "MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS",
+        "3600" if ENVIRONMENT != "production" else "2592000",
+    )
+)
 
 
 def show_debug_toolbar(request):
     return DEBUG and os.getenv("SHOW_DEBUG_TOOLBAR") in TRUE_VALUES
 
 
+DEBUG_TOOLBAR_PANELS = [
+    "debug_toolbar.panels.history.HistoryPanel",
+    "debug_toolbar.panels.versions.VersionsPanel",
+    "debug_toolbar.panels.timer.TimerPanel",
+    "debug_toolbar.panels.settings.SettingsPanel",
+    "debug_toolbar.panels.headers.HeadersPanel",
+    "debug_toolbar.panels.request.RequestPanel",
+    "debug_toolbar.panels.sql.SQLPanel",
+    "debug_toolbar.panels.staticfiles.StaticFilesPanel",
+    "debug_toolbar.panels.templates.TemplatesPanel",
+    "debug_toolbar.panels.alerts.AlertsPanel",
+    "debug_toolbar.panels.cache.CachePanel",
+    "debug_toolbar.panels.signals.SignalsPanel",
+    "debug_toolbar.panels.redirects.RedirectsPanel",
+    "debug_toolbar.panels.profiling.ProfilingPanel",
+]
+
 DEBUG_TOOLBAR_CONFIG = {
     "SHOW_TOOLBAR_CALLBACK": show_debug_toolbar,
     "INSERT_BEFORE": "</head>",
     "IS_RUNNING_TESTS": False,
+    "ENABLE_STACKTRACES": True,
+    "UPDATE_ON_FETCH": True,
 }
 
 
@@ -425,7 +451,7 @@ LOGGING = {
         },
         "celery": {
             "handlers": ["console", "file"],
-            "level": "WARNING" if not DEBUG else "DEBUG",
+            "level": "WARNING" if not DEBUG else "INFO",
             "propagate": False,
         },
     },

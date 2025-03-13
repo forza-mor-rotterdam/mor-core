@@ -13,6 +13,7 @@ from apps.meldingen.managers import (
     verwijderd,
 )
 from apps.meldingen.tasks import (
+    task_bijlages_voor_geselecteerde_meldingen_opruimen,
     task_notificatie_voor_signaal_melding_afgesloten,
     task_notificaties_voor_melding_veranderd,
 )
@@ -94,6 +95,8 @@ def afgesloten_handler(sender, melding, *args, **kwargs):
     if melding.status.naam == Status.NaamOpties.AFGEHANDELD:
         for signaal in melding.signalen_voor_melding.all():
             task_notificatie_voor_signaal_melding_afgesloten.delay(signaal.pk)
+
+        task_bijlages_voor_geselecteerde_meldingen_opruimen.delay([melding.id])
 
 
 @receiver(gebeurtenis_toegevoegd, dispatch_uid="melding_gebeurtenis_toegevoegd")

@@ -102,6 +102,15 @@ class Locatie(BasisModel):
     def custom_gewicht_property(self):
         return self.bereken_gewicht()
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["buurtnaam", "wijknaam"], name="buurtnaam_wijknaam_idx"
+            ),
+            models.Index(fields=["buurtnaam"], name="buurtnaam_idx"),
+            models.Index(fields=["wijknaam"], name="wijknaam_idx"),
+        ]
+
 
 class Adres(Locatie):
     """
