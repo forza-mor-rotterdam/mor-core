@@ -53,7 +53,7 @@ class SignaalApiTest(APITestCase):
             {
                 "plaatsnaam": "Rotterdam",
                 "straatnaam": "Coolsingel",
-                "huisnummer": "0",
+                "huisnummer": None,
                 "buurtnaam": "centrum",
                 "wijknaam": "centrum",
                 "geometrie": {
