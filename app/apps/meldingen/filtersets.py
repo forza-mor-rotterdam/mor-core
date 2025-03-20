@@ -221,9 +221,11 @@ class MeldingFilter(BasisFilter):
     # Er kan op meerdere komma separated zoektermen gezocht worden
     def get_q(self, queryset, name, value):
         if value:
+            from apps.signalen.models import Signaal
+
             search_terms = value.split(",")
             combined_q = Q()
-
+            combined_signalen_q = Q()
             for term in search_terms:
                 term = "".join(
                     [
@@ -232,21 +234,30 @@ class MeldingFilter(BasisFilter):
                         if char not in ["*", "(", ")", "?", "[", "]", "{", "}", "\\"]
                     ]
                 )
-                combined_q &= (
-                    # MeldR-nummer fields
-                    Q(signalen_voor_melding__bron_signaal_id__iregex=term)
-                    # Melder fields
-                    | Q(signalen_voor_melding__melder__naam__iregex=term)
-                    # | Q(signalen_voor_melding__melder__voornaam__iregex=term) Currently not used
-                    # | Q(signalen_voor_melding__melder__achternaam__iregex=term) Currently not used
-                    | Q(signalen_voor_melding__melder__email__iregex=term)
-                    | Q(signalen_voor_melding__melder__telefoonnummer__iregex=term)
-                    | Q(locaties_voor_melding__locatie_zoek_field__icontains=term)
-                    | Q(
-                        signalen_voor_melding__locaties_voor_signaal__locatie_zoek_field__icontains=term
-                    )
+
+                combined_signalen_q &= (
+                    Q(bron_signaal_id__iregex=term)
+                    | Q(melder__naam__iregex=term)
+                    | Q(melder__email__iregex=term)
+                    | Q(melder__telefoonnummer__iregex=term)
+                    | Q(locaties_voor_signaal__locatie_zoek_field__icontains=term)
                 )
-            return queryset.filter(combined_q).distinct()
+
+                combined_q &= Q(
+                    locaties_voor_melding__locatie_zoek_field__icontains=term
+                )
+
+            signalen = Signaal.objects.filter(combined_signalen_q)
+            # print(signalen.count())
+
+            combined_q |= Q(
+                signalen_voor_melding__in=signalen.values_list("id", flat=True)
+            )
+            return queryset.filter(
+                # signalen_voor_melding__in=signalen.values_list("id", flat=True),
+                combined_q,
+            ).distinct()
+            # return queryset.filter(combined_q).distinct()
 
         return queryset
 
