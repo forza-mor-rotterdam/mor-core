@@ -247,25 +247,23 @@ class MeldingFilter(BasisFilter):
 
                 combined_locaties_q |= Q(locatie_zoek_field__icontains=term)
 
-            locatie_signaal_ids = Locatie.objects.filter(
-                combined_locaties_q
-            ).values_list("signaal", flat=True)
-            locatie_melding_ids = Locatie.objects.filter(
-                combined_locaties_q
-            ).values_list("melding", flat=True)
-            melder_ids = Melder.objects.filter(combined_melders_q).values_list(
-                "id", flat=True
+            locaties_filtered = Locatie.objects.filter(combined_locaties_q)
+            locatie_signaal_ids = locaties_filtered.values_list("signaal", flat=True)
+            locatie_melding_ids = locaties_filtered.values_list("melding", flat=True)
+
+            melder_signaal_ids = Melder.objects.filter(combined_melders_q).values_list(
+                "signaal", flat=True
             )
             signalen = Signaal.objects.filter(combined_signalen_q)
 
             if signalen:
                 combined_q &= combined_signalen_q
-            if melder_ids:
-                combined_q &= Q(melder__id__in=melder_ids)
+            if melder_signaal_ids:
+                combined_q &= Q(id__in=melder_signaal_ids)
             if locatie_signaal_ids:
-                combined_q &= Q(in__in=locatie_signaal_ids)
+                combined_q &= Q(id__in=locatie_signaal_ids)
             signaal_melding_ids = []
-            if signalen or melder_ids or locatie_signaal_ids:
+            if signalen or melder_signaal_ids or locatie_signaal_ids:
                 signaal_melding_ids = Signaal.objects.filter(combined_q).values_list(
                     "melding", flat=True
                 )
