@@ -125,7 +125,6 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
             Prefetch(
                 "locaties_voor_melding", queryset=Locatie.objects.filter(primair=True)
             ),
-            # "signalen_voor_melding__locaties_voor_signaal",
             "signalen_voor_melding__bijlagen",
             "bijlagen",
             "meldinggebeurtenissen_voor_melding__bijlagen",

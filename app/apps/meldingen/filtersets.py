@@ -3,6 +3,7 @@ from collections import OrderedDict
 from typing import List, Tuple
 
 from apps.locatie.models import Locatie
+from apps.melders.models import Melder
 from apps.meldingen.models import Melding
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
@@ -224,8 +225,9 @@ class MeldingFilter(BasisFilter):
             from apps.signalen.models import Signaal
 
             search_terms = value.split(",")
-            combined_q = Q()
             combined_signalen_q = Q()
+            combined_melders_q = Q()
+            combined_locaties_q = Q()
             for term in search_terms:
                 term = "".join(
                     [
@@ -235,29 +237,29 @@ class MeldingFilter(BasisFilter):
                     ]
                 )
 
-                combined_signalen_q &= (
-                    Q(bron_signaal_id__iregex=term)
-                    | Q(melder__naam__iregex=term)
-                    | Q(melder__email__iregex=term)
-                    | Q(melder__telefoonnummer__iregex=term)
-                    | Q(locaties_voor_signaal__locatie_zoek_field__icontains=term)
+                combined_signalen_q |= Q(bron_signaal_id__iregex=term)
+                combined_melders_q |= (
+                    Q(naam__iregex=term)
+                    | Q(email__iregex=term)
+                    | Q(telefoonnummer__iregex=term)
                 )
 
-                combined_q &= Q(
-                    locaties_voor_melding__locatie_zoek_field__icontains=term
-                )
+                combined_locaties_q |= Q(locatie_zoek_field__icontains=term)
 
-            signalen = Signaal.objects.filter(combined_signalen_q)
-            # print(signalen.count())
-
-            combined_q |= Q(
-                signalen_voor_melding__in=signalen.values_list("id", flat=True)
+            locatie_ids = Locatie.objects.filter(combined_locaties_q).values_list(
+                "id", flat=True
             )
-            return queryset.filter(
-                # signalen_voor_melding__in=signalen.values_list("id", flat=True),
-                combined_q,
-            ).distinct()
-            # return queryset.filter(combined_q).distinct()
+            melder_ids = Melder.objects.filter(combined_melders_q).values_list(
+                "id", flat=True
+            )
+
+            signaal_ids = Signaal.objects.filter(
+                Q(locaties_voor_signaal__in=locatie_ids)
+                | combined_signalen_q
+                | Q(melder__id__in=melder_ids)
+            ).values_list("id", flat=True)
+
+            return queryset.filter(signalen_voor_melding__in=signaal_ids).distinct()
 
         return queryset
 
