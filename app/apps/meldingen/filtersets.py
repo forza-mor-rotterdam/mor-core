@@ -225,6 +225,7 @@ class MeldingFilter(BasisFilter):
             from apps.signalen.models import Signaal
 
             search_terms = value.split(",")
+            combined_q = Q()
             combined_signalen_q = Q()
             combined_melders_q = Q()
             combined_locaties_q = Q()
@@ -246,20 +247,32 @@ class MeldingFilter(BasisFilter):
 
                 combined_locaties_q |= Q(locatie_zoek_field__icontains=term)
 
-            locatie_ids = Locatie.objects.filter(combined_locaties_q).values_list(
-                "id", flat=True
-            )
+            locatie_signaal_ids = Locatie.objects.filter(
+                combined_locaties_q
+            ).values_list("signaal", flat=True)
+            locatie_melding_ids = Locatie.objects.filter(
+                combined_locaties_q
+            ).values_list("melding", flat=True)
             melder_ids = Melder.objects.filter(combined_melders_q).values_list(
                 "id", flat=True
             )
+            signalen = Signaal.objects.filter(combined_signalen_q)
 
-            signaal_ids = Signaal.objects.filter(
-                Q(locaties_voor_signaal__in=locatie_ids)
-                | combined_signalen_q
-                | Q(melder__id__in=melder_ids)
-            ).values_list("id", flat=True)
+            if signalen:
+                combined_q &= combined_signalen_q
+            if melder_ids:
+                combined_q &= Q(melder__id__in=melder_ids)
+            if locatie_signaal_ids:
+                combined_q &= Q(in__in=locatie_signaal_ids)
+            signaal_melding_ids = []
+            if signalen or melder_ids or locatie_signaal_ids:
+                signaal_melding_ids = Signaal.objects.filter(combined_q).values_list(
+                    "melding", flat=True
+                )
 
-            return queryset.filter(signalen_voor_melding__in=signaal_ids).distinct()
+            return queryset.filter(
+                Q(id__in=signaal_melding_ids) | Q(id__in=locatie_melding_ids)
+            )  # .distinct()
 
         return queryset
 
