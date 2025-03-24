@@ -68,6 +68,18 @@ def task_notificatie_voor_melding_veranderd(
 
 
 @shared_task(bind=True)
+def task_bijlages_voor_meldingen_reeks_opruimen(
+    self, start_index=None, eind_index=None, order_by="id"
+):
+    from apps.meldingen.models import Melding
+
+    melding_ids = list(
+        Melding.objects.all().order_by(order_by).values_list("id", flat=True)
+    )[start_index:eind_index]
+    task_bijlages_voor_geselecteerde_meldingen_opruimen.delay(melding_ids)
+
+
+@shared_task(bind=True)
 def task_bijlages_voor_geselecteerde_meldingen_opruimen(self, melding_ids):
     from apps.meldingen.models import Melding
 
@@ -78,7 +90,8 @@ def task_bijlages_voor_geselecteerde_meldingen_opruimen(self, melding_ids):
             afgesloten_op__isnull=False,
         ).first()
         if not melding:
-            return f"Melding met id={melding.id}, is nog niet afgesloten"
+            logger.warning(f"Melding met id={melding_id}, is nog niet afgesloten")
+            continue
 
         periodic_task_name = (
             f"clocked_periodic_task_bijlages_voor_melding_opruimen_{melding.id}"
@@ -111,7 +124,7 @@ def task_bijlages_voor_melding_opruimen(self, melding_id):
         afgesloten_op__isnull=False,
     ).first()
     if not melding:
-        return f"Melding met id={melding.id}, is nog niet afgesloten"
+        return f"Melding met id={melding_id}, is nog niet afgesloten"
 
     bijlagen = []
 
@@ -143,19 +156,21 @@ def task_bijlages_voor_melding_opruimen(self, melding_id):
     for bijlage in bijlagen:
         logger.info(f"bijlage opruimen: id={bijlage.id}")
         task_bijlage_opruimen.delay(bijlage.id)
-        # if instantaan:
-        # else:
-        #     periodic_task_name = f"clocked_periodic_task_bijlage_opruimen_{bijlage.id}"
-        #     existing_task = PeriodicTask.objects.filter(name=periodic_task_name).first()
-        #     if existing_task:
-        #         existing_task.delete()
-        #     clocked_schedule = ClockedSchedule.objects.create(
-        #         clocked_time=now + timedelta(seconds=settings.MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS)
-        #     )
-        #     PeriodicTask.objects.create(
-        #         clocked=clocked_schedule,
-        #         name=periodic_task_name,
-        #         task="apps.bijlagen.tasks.task_bijlage_opruimen",
-        #         one_off=True,
-        #         args=[bijlage.id],
-        #     )
+
+    return {"bijlagen_aantal": len(bijlagen)}
+    # if instantaan:
+    # else:
+    #     periodic_task_name = f"clocked_periodic_task_bijlage_opruimen_{bijlage.id}"
+    #     existing_task = PeriodicTask.objects.filter(name=periodic_task_name).first()
+    #     if existing_task:
+    #         existing_task.delete()
+    #     clocked_schedule = ClockedSchedule.objects.create(
+    #         clocked_time=now + timedelta(seconds=settings.MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS)
+    #     )
+    #     PeriodicTask.objects.create(
+    #         clocked=clocked_schedule,
+    #         name=periodic_task_name,
+    #         task="apps.bijlagen.tasks.task_bijlage_opruimen",
+    #         one_off=True,
+    #         args=[bijlage.id],
+    #     )
