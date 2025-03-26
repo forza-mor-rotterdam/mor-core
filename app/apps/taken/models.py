@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.gis.db import models
 from django.contrib.sites.models import Site
+from django.db.models import Q
 from rest_framework.exceptions import APIException
 from rest_framework.reverse import reverse
 from utils.fields import DictJSONField
@@ -166,10 +167,13 @@ class Taakopdracht(BasisModel):
     def clean(self):
         if self.pk is None:
             openstaande_taken = self.melding.taakopdrachten_voor_melding.exclude(
-                status__naam__in=[
-                    Taakstatus.NaamOpties.VOLTOOID,
-                    Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
-                ]
+                Q(
+                    status__naam__in=[
+                        Taakstatus.NaamOpties.VOLTOOID,
+                        Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
+                    ]
+                )
+                | Q(verwijderd_op__isnull=False)
             )
             gebruikte_taaktypes = list(
                 {
