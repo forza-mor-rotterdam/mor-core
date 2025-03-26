@@ -19,6 +19,7 @@ class BijlageAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "uuid",
+        "bestand_hash",
         "aangemaakt_op",
         "is_afbeelding",
         "mimetype",
