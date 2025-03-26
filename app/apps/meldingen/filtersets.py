@@ -183,7 +183,10 @@ class MeldingFilter(BasisFilter):
         except Exception:
             logger.warning(f"Warning: within syntax not ok: {value}")
             return queryset
-        locaties = Locatie.objects.filter(melding=OuterRef("pk")).order_by("-gewicht")
+        locaties = Locatie.objects.filter(
+            melding=OuterRef("pk"),
+            geometrie__isnull=False,
+        ).order_by("-gewicht")
         return queryset.annotate(geometrie=locaties.values("geometrie")[:1]).filter(
             geometrie__distance_lt=(
                 Point(d["lon"], d["lat"]),
