@@ -519,7 +519,7 @@ class MeldingManager(models.Manager):
                     locked_taakopdracht.resolutie = resolutie
                     locked_taakopdracht_updated_fields.append("resolutie")
                     taakgebeurtenis.resolutie = resolutie
-                    taakgebeurtenis.save(updated_fields=["resolutie"])
+                    taakgebeurtenis.save(update_fields=["resolutie"])
 
             # Heropenen van melding
             if locked_melding.status.is_afgesloten() and resolutie_opgelost_herzien:
@@ -548,7 +548,7 @@ class MeldingManager(models.Manager):
                 gebruiker=taakgebeurtenis.gebruiker,
             )
 
-            locked_taakopdracht.save(updated_fields=locked_taakopdracht_updated_fields)
+            locked_taakopdracht.save(update_fields=locked_taakopdracht_updated_fields)
 
             # zet status van de melding naar in_behandeling als dit niet de huidige status is
             if not locked_melding.actieve_taakopdrachten():
@@ -626,7 +626,7 @@ class MeldingManager(models.Manager):
             )
 
             # zet status van de melding naar in_behandeling als dit niet de huidige status is
-            locked_taakopdracht.save(updated_fields=["verwijderd_op"])
+            locked_taakopdracht.save(update_fields=["verwijderd_op"])
 
             if not locked_melding.actieve_taakopdrachten():
                 status_instance = Status(naam=Status.NaamOpties.CONTROLE)
