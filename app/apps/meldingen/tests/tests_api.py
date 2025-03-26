@@ -5,7 +5,7 @@ from apps.aliassen.models import OnderwerpAlias
 from apps.applicaties.models import Applicatie
 from apps.bijlagen.models import Bijlage
 from apps.instellingen.models import Instelling
-from apps.locatie.models import Adres
+from apps.locatie.models import Adres, Lichtmast
 from apps.meldingen.models import Melding
 from apps.status.models import Status
 from django.contrib.gis.geos import Point
@@ -340,3 +340,30 @@ class MeldingApiTest(APITestCase):
 
         self.assertEqual(Melding.objects.count(), 5)
         self.assertEqual(len(data["results"]), 1)
+
+    def test_filter_melding_with_mutiple_locations_with_without_geometrie(self):
+        reference_lat = 51.924409
+        reference_lon = 4.477736
+        d = 30
+
+        client = get_authenticated_client()
+        m1 = baker.make(Melding)
+        baker.make(
+            Adres,
+            geometrie=Point(reference_lon, reference_lat),
+            melding=m1,
+            gewicht=0.5,
+        )
+        baker.make(Adres, geometrie=Point(4.479677, 51.924818), melding=m1, gewicht=0.5)
+        baker.make(Lichtmast, lichtmast_id=42, melding=m1, gewicht=0.6)
+        m2 = baker.make(Melding)
+        baker.make(Adres, geometrie=Point(4.478122, 51.924488), melding=m2, gewicht=1)
+
+        url = reverse("app:melding-list")
+
+        response = client.get(
+            f"{url}?within=lat:{reference_lat},lon:{reference_lon},d:{d}"
+        )
+        data = response.json()
+
+        self.assertEqual(len(data["results"]), 2)
