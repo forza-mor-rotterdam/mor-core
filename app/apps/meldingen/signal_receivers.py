@@ -7,7 +7,7 @@ from apps.meldingen.managers import (
     signaal_aangemaakt,
     status_aangepast,
     taakopdracht_aangemaakt,
-    taakopdracht_status_aangepast,
+    taakopdracht_notificatie,
     taakopdracht_verwijderd,
     urgentie_aangepast,
     verwijderd,
@@ -151,15 +151,12 @@ def taakopdracht_aangemaakt_handler(
     )
 
 
-@receiver(taakopdracht_status_aangepast, dispatch_uid="taakopdracht_status_aangepast")
+@receiver(taakopdracht_notificatie, dispatch_uid="taakopdracht_notificatie")
 def taakopdracht_status_aangepast_handler(
     sender, melding, taakopdracht, taakgebeurtenis, *args, **kwargs
 ):
     if kwargs.get("raw"):
         return
-    task_taak_status_aanpassen.delay(
-        taakgebeurtenis_id=taakgebeurtenis.id,
-    )
 
     bijlages_aanmaken = [
         task_aanmaken_afbeelding_versies.s(bijlage.pk)
@@ -167,7 +164,7 @@ def taakopdracht_status_aangepast_handler(
     ]
     notificaties_voor_melding_veranderd = task_notificaties_voor_melding_veranderd.s(
         melding_url=melding.get_absolute_url(),
-        notificatie_type="taakopdracht_status_aangepast",
+        notificatie_type="taakopdracht_notificatie",
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
 
