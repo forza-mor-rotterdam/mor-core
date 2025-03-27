@@ -5,6 +5,7 @@ from typing import List, Tuple
 from apps.locatie.models import Locatie
 from apps.melders.models import Melder
 from apps.meldingen.models import Melding
+from apps.signalen.models import Signaal
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.contrib.postgres.search import TrigramSimilarity
@@ -225,55 +226,45 @@ class MeldingFilter(BasisFilter):
     # Er kan op meerdere komma separated zoektermen gezocht worden
     def get_q(self, queryset, name, value):
         if value:
-            from apps.signalen.models import Signaal
-
             search_terms = value.split(",")
-            combined_q = Q()
-            combined_signalen_q = Q()
-            combined_melders_q = Q()
-            combined_locaties_q = Q()
-            for term in search_terms:
-                term = "".join(
+            cleaned_search_terms = [
+                "".join(
                     [
                         char
                         for char in term.strip()
                         if char not in ["*", "(", ")", "?", "[", "]", "{", "}", "\\"]
                     ]
                 )
+                for term in search_terms
+            ]
+            cleaned_search_terms = [term for term in cleaned_search_terms if term][:3]
 
-                combined_signalen_q |= Q(bron_signaal_id__iregex=term)
-                combined_melders_q |= (
-                    Q(naam__iregex=term)
-                    | Q(email__iregex=term)
-                    | Q(telefoonnummer__iregex=term)
+            combined_q = Q()
+            for term in cleaned_search_terms:
+                locaties_filtered = Locatie.objects.filter(
+                    locatie_zoek_field__icontains=term
                 )
-
-                combined_locaties_q |= Q(locatie_zoek_field__icontains=term)
-
-            locaties_filtered = Locatie.objects.filter(combined_locaties_q)
-            locatie_signaal_ids = locaties_filtered.values_list("signaal", flat=True)
-            locatie_melding_ids = locaties_filtered.values_list("melding", flat=True)
-
-            melder_signaal_ids = Melder.objects.filter(combined_melders_q).values_list(
-                "signaal", flat=True
-            )
-            signalen = Signaal.objects.filter(combined_signalen_q)
-
-            if signalen:
-                combined_q &= combined_signalen_q
-            if melder_signaal_ids:
-                combined_q &= Q(id__in=melder_signaal_ids)
-            if locatie_signaal_ids:
-                combined_q &= Q(id__in=locatie_signaal_ids)
-            signaal_melding_ids = []
-            if signalen or melder_signaal_ids or locatie_signaal_ids:
-                signaal_melding_ids = Signaal.objects.filter(combined_q).values_list(
+                locatie_signaal_ids = locaties_filtered.values_list(
+                    "signaal", flat=True
+                )
+                locatie_melding_ids = locaties_filtered.values_list(
                     "melding", flat=True
                 )
 
-            return queryset.filter(
-                Q(id__in=signaal_melding_ids) | Q(id__in=locatie_melding_ids)
-            )  # .distinct()
+                melder_signaal_ids = Melder.objects.filter(
+                    Q(naam__iregex=term)
+                    | Q(email__iregex=term)
+                    | Q(telefoonnummer__iregex=term)
+                ).values_list("signaal", flat=True)
+                signaal_melding_ids = Signaal.objects.filter(
+                    Q(bron_signaal_id__iregex=term)
+                    | Q(id__in=melder_signaal_ids)
+                    | Q(id__in=locatie_signaal_ids)
+                ).values_list("melding", flat=True)
+                combined_q &= Q(id__in=signaal_melding_ids) | Q(
+                    id__in=locatie_melding_ids
+                )
+            queryset = queryset.filter(combined_q)
 
         return queryset
 
