@@ -48,7 +48,7 @@ def task_verwijder_bestand(self, melding_url, pad):
     return f"Verwijder_bestand: melding_url={melding_url}, pad={pad}"
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, queue="celery:9")
 def task_bijlage_opruimen(self, bijlage_id):
     from apps.bijlagen.models import Bijlage
 

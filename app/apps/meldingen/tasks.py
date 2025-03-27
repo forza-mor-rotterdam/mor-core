@@ -114,7 +114,7 @@ def task_bijlages_voor_geselecteerde_meldingen_opruimen(self, melding_ids):
     return melding_ids
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, queue="celery:9")
 def task_bijlages_voor_melding_opruimen(self, melding_id):
     from apps.bijlagen.tasks import task_bijlage_opruimen
     from apps.meldingen.models import Melding
