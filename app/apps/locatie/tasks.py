@@ -58,7 +58,10 @@ def task_update_locatie_primair(self):
     from django.db.models import OuterRef, Subquery
 
     locations_subquery = (
-        Locatie.objects.filter(melding=OuterRef("pk"))
+        Locatie.objects.filter(
+            melding=OuterRef("pk"),
+            geometrie__isnull=False,
+        )
         .order_by("-gewicht", "id")
         .values("id")[:1]
     )
