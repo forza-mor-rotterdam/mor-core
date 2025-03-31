@@ -10,6 +10,8 @@ from apps.taken.tasks import (
 )
 from django.contrib import admin, messages
 from django.utils.safestring import mark_safe
+from django_celery_beat.admin import PeriodicTaskAdmin
+from django_celery_beat.models import PeriodicTask
 from django_celery_results.admin import TaskResultAdmin
 from django_celery_results.models import TaskResult
 
@@ -272,8 +274,15 @@ class CustomTaskResultAdmin(TaskResultAdmin):
     ]
 
 
+class CustomPeriodicTaskAdmin(PeriodicTaskAdmin):
+    raw_id_fields = ("clocked",)
+
+
 admin.site.unregister(TaskResult)
 admin.site.register(TaskResult, CustomTaskResultAdmin)
+
+admin.site.unregister(PeriodicTask)
+admin.site.register(PeriodicTask, CustomPeriodicTaskAdmin)
 
 
 admin.site.register(Taakstatus, TaakstatusAdmin)
