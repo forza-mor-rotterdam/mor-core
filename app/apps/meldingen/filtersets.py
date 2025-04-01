@@ -3,7 +3,9 @@ from collections import OrderedDict
 from typing import List, Tuple
 
 from apps.locatie.models import Locatie
+from apps.melders.models import Melder
 from apps.meldingen.models import Melding
+from apps.signalen.models import Signaal
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.contrib.postgres.search import TrigramSimilarity
@@ -182,7 +184,10 @@ class MeldingFilter(BasisFilter):
         except Exception:
             logger.warning(f"Warning: within syntax not ok: {value}")
             return queryset
-        locaties = Locatie.objects.filter(melding=OuterRef("pk")).order_by("-gewicht")
+        locaties = Locatie.objects.filter(
+            melding=OuterRef("pk"),
+            geometrie__isnull=False,
+        ).order_by("-gewicht")
         return queryset.annotate(geometrie=locaties.values("geometrie")[:1]).filter(
             geometrie__distance_lt=(
                 Point(d["lon"], d["lat"]),
@@ -222,31 +227,44 @@ class MeldingFilter(BasisFilter):
     def get_q(self, queryset, name, value):
         if value:
             search_terms = value.split(",")
-            combined_q = Q()
-
-            for term in search_terms:
-                term = "".join(
+            cleaned_search_terms = [
+                "".join(
                     [
                         char
                         for char in term.strip()
                         if char not in ["*", "(", ")", "?", "[", "]", "{", "}", "\\"]
                     ]
                 )
-                combined_q &= (
-                    # MeldR-nummer fields
-                    Q(signalen_voor_melding__bron_signaal_id__iregex=term)
-                    # Melder fields
-                    | Q(signalen_voor_melding__melder__naam__iregex=term)
-                    # | Q(signalen_voor_melding__melder__voornaam__iregex=term) Currently not used
-                    # | Q(signalen_voor_melding__melder__achternaam__iregex=term) Currently not used
-                    | Q(signalen_voor_melding__melder__email__iregex=term)
-                    | Q(signalen_voor_melding__melder__telefoonnummer__iregex=term)
-                    | Q(locaties_voor_melding__locatie_zoek_field__icontains=term)
-                    | Q(
-                        signalen_voor_melding__locaties_voor_signaal__locatie_zoek_field__icontains=term
-                    )
+                for term in search_terms
+            ]
+            cleaned_search_terms = [term for term in cleaned_search_terms if term][:3]
+
+            combined_q = Q()
+            for term in cleaned_search_terms:
+                locaties_filtered = Locatie.objects.filter(
+                    locatie_zoek_field__icontains=term
                 )
-            return queryset.filter(combined_q).distinct()
+                locatie_signaal_ids = locaties_filtered.values_list(
+                    "signaal", flat=True
+                )
+                locatie_melding_ids = locaties_filtered.values_list(
+                    "melding", flat=True
+                )
+
+                melder_signaal_ids = Melder.objects.filter(
+                    Q(naam__iregex=term)
+                    | Q(email__iregex=term)
+                    | Q(telefoonnummer__iregex=term)
+                ).values_list("signaal", flat=True)
+                signaal_melding_ids = Signaal.objects.filter(
+                    Q(bron_signaal_id__iregex=term)
+                    | Q(id__in=melder_signaal_ids)
+                    | Q(id__in=locatie_signaal_ids)
+                ).values_list("melding", flat=True)
+                combined_q &= Q(id__in=signaal_melding_ids) | Q(
+                    id__in=locatie_melding_ids
+                )
+            queryset = queryset.filter(combined_q)
 
         return queryset
 

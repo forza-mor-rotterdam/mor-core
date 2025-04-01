@@ -119,11 +119,10 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
             "status",
         )
         .prefetch_related(
+            "onderwerpen",
             "locaties_voor_melding",
-            "signalen_voor_melding__locaties_voor_signaal",
             "signalen_voor_melding__bijlagen",
             "bijlagen",
-            "onderwerpen",
             "meldinggebeurtenissen_voor_melding__bijlagen",
             "meldinggebeurtenissen_voor_melding__taakgebeurtenis__bijlagen",
             "taakopdrachten_voor_melding__status",
