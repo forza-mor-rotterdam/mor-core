@@ -221,7 +221,8 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         permission_classes=(),
     )
     def taakopdracht_notificatie(self, request, uuid, taakopdracht_uuid):
-        from apps.taken.models import Taakopdracht, Taakstatus
+        from apps.meldingen.tasks import task_taakopdracht_notificatie
+        from apps.taken.models import Taakopdracht
 
         melding = self.get_object()
         try:
@@ -234,35 +235,19 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         data = {}
         data.update(request.data)
 
-        IS_VOLTOOID_MET_FEEDBACK = (
-            taakopdracht.status.naam == Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK
-        )
-        IS_VOLTOOID_MET_HERZIEN = (
-            taakopdracht.status.naam == Taakstatus.NaamOpties.VOLTOOID
-            and not request.data.get("resolutie_opgelost_herzien", False)
-        )
-        IS_VORIGE_STATUS = taakopdracht.status.naam == data.get("taakstatus", {}).get(
-            "naam"
-        )
-        if (
-            taakopdracht.verwijderd_op
-            or IS_VOLTOOID_MET_FEEDBACK
-            or IS_VOLTOOID_MET_HERZIEN
-            or IS_VORIGE_STATUS
-        ):
-            return Response({})
-
-        print(data)
         if data.get("taakstatus"):
             data["taakstatus"]["taakopdracht"] = taakopdracht.id
-        print(data)
         serializer = TaakopdrachtNotificatieSaveSerializer(
             data=data,
             context={"request": request},
         )
         if serializer.is_valid():
-            print("is valid")
-            Melding.acties.taakopdracht_notificatie(taakopdracht, serializer)
+            task_taakopdracht_notificatie.delay(
+                uuid, taakopdracht_uuid, serializer.validated_data
+            )
+        logger.warning(
+            f"taakopdracht_notificatie: serializer.errors={serializer.errors}"
+        )
         return Response({})
 
     @extend_schema(

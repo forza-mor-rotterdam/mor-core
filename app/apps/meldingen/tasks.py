@@ -67,6 +67,34 @@ def task_notificatie_voor_melding_veranderd(
     return f"Applicatie naam: {applicatie.naam}, melding_url={melding_url}, notificatie_type={notificatie_type}"
 
 
+@shared_task(bind=True, base=BaseTaskWithRetry)
+def task_taakopdracht_notificatie(
+    self,
+    melding_uuid,
+    taakopdracht_uuid,
+    taakgebeurtenis_validated_data,
+):
+    from apps.meldingen.models import Melding
+
+    melding = Melding.objects.filter(uuid=melding_uuid).first()
+
+    if not melding:
+        return f"Warning: melding met uuid: {melding_uuid} is niet gevonden"
+
+    taakopdracht = melding.taakopdrachten_voor_melding.filter(
+        uuid=taakopdracht_uuid
+    ).first()
+
+    if not taakopdracht:
+        return f"Warning: taakopdracht met uuid: {taakopdracht_uuid}, is niet gevonden voor melding met uuid: {melding_uuid}"
+
+    Melding.acties.taakopdracht_notificatie(
+        taakopdracht, taakgebeurtenis_validated_data
+    )
+
+    return f"Taakopdracht notificatie: taakopdracht_uuid: {taakopdracht_uuid}, melding_uuid={melding_uuid}"
+
+
 @shared_task(bind=True)
 def task_bijlages_voor_meldingen_reeks_opruimen(
     self, start_index=None, eind_index=None, order_by="id"
