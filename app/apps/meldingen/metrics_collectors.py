@@ -8,6 +8,7 @@ from apps.signalen.models import Signaal
 from apps.status.models import Status
 from apps.taken.models import Taakopdracht
 from django.conf import settings
+from django.db import connections
 from django.db.models import (
     Avg,
     Case,
@@ -280,6 +281,14 @@ class CustomCollector(object):
             )
         return c
 
+    def dictfetchall(self, cursor):
+        """
+        Return all rows from a cursor as a dict.
+        Assume the column names are unique.
+        """
+        columns = [col[0] for col in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
     def collect_taak_metrics(self):
         c = CounterMetricFamily(
             "morcore_taken_total",
@@ -290,21 +299,20 @@ class CustomCollector(object):
                 "wijk",
             ],
         )
+        total_taken = []
 
-        total_taken = (
-            self.annotated_wijken_taken.values(
-                "titel", "status__naam", "highest_weight_wijk"
-            )
-            .order_by("titel")
-            .annotate(count=Count("titel"))
-        )
+        sql = 'SELECT "taken_taakopdracht"."titel", "taken_taakstatus"."naam", COALESCE("locatie_locatie".wijknaam, \'Onbekend\') AS wijk, COUNT("taken_taakopdracht"."titel") AS "count" FROM "taken_taakopdracht" JOIN "taken_taakstatus" ON ("taken_taakopdracht"."status_id" = "taken_taakstatus"."id") JOIN "locatie_locatie" ON "locatie_locatie".melding_id = "taken_taakopdracht".melding_id AND "locatie_locatie".primair = true GROUP BY "taken_taakopdracht"."titel", "taken_taakstatus"."naam", 3 ORDER BY "taken_taakopdracht"."titel" ASC;'
+
+        with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
+            cursor.execute(sql)
+            total_taken = self.dictfetchall(cursor)
 
         for taak in total_taken:
             c.add_metric(
                 (
                     taak["titel"],
-                    taak["status__naam"],
-                    taak["highest_weight_wijk"],
+                    taak["naam"],
+                    taak["wijk"],
                 ),
                 taak["count"],
             )
