@@ -154,7 +154,8 @@ class Melding(BasisModel):
             status__naam__in=[
                 Taakstatus.NaamOpties.VOLTOOID,
                 Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
-            ]
+            ],
+            verwijderd_op__isnull=False,
         )
 
     def get_absolute_url(self):

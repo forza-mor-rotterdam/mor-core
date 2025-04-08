@@ -127,9 +127,7 @@ def task_taak_aanmaken(self, taakgebeurtenis_id, check_taak_url=True):
                 .get(id=taakgebeurtenis_id)
             )
         except ObjectDoesNotExist:
-            raise MeldingManager.TaakgebeurtenisNietGevonden(
-                f"Taakgebeurtenis met id {taakgebeurtenis_id} bestaat niet."
-            )
+            logger.warning(f"Taakgebeurtenis met id {taakgebeurtenis_id} bestaat niet.")
 
         except OperationalError:
             raise MeldingManager.TaakgebeurtenisInGebruik(
@@ -143,7 +141,7 @@ def task_taak_aanmaken(self, taakgebeurtenis_id, check_taak_url=True):
                 .get(id=taakgebeurtenis.taakopdracht.id)
             )
         except ObjectDoesNotExist:
-            raise MeldingManager.TaakopdrachtNietGevonden(
+            logger.warning(
                 f"Taakopdracht met id {taakgebeurtenis.taakopdracht.id} bestaat niet."
             )
         except OperationalError:

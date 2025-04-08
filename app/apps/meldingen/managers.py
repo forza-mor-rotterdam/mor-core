@@ -464,31 +464,12 @@ class MeldingManager(models.Manager):
     def taakopdracht_notificatie(
         self,
         taakopdracht,
-        taakgebeurtenis_validated_data,
+        serializer,
         db="default",
     ):
         from apps.meldingen.models import Melding, Meldinggebeurtenis
         from apps.status.models import Status
-        from apps.taken.models import Taakgebeurtenis, Taakopdracht, Taakstatus
-
-        taakopdracht_status_naam = taakopdracht.status.naam
-        data_status_naam = taakgebeurtenis_validated_data.get("taakstatus", {}).get(
-            "naam"
-        )
-
-        IS_VOLTOOID_MET_FEEDBACK = (
-            taakopdracht_status_naam == Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK
-        )
-        IS_VOLTOOID_MET_HERZIEN = (
-            taakopdracht_status_naam == Taakstatus.NaamOpties.VOLTOOID
-            and not taakgebeurtenis_validated_data.get(
-                "resolutie_opgelost_herzien", False
-            )
-        )
-        IS_VORIGE_STATUS = taakopdracht_status_naam == data_status_naam
-
-        if IS_VOLTOOID_MET_FEEDBACK or IS_VOLTOOID_MET_HERZIEN or IS_VORIGE_STATUS:
-            return f"Warning: status fout, taakopdracht met uuid: {taakopdracht.uuid}, status error: huidige status={taakopdracht_status_naam}, voorgestelde status={data_status_naam}"
+        from apps.taken.models import Taakopdracht, Taakstatus
 
         with transaction.atomic():
             try:
@@ -513,12 +494,11 @@ class MeldingManager(models.Manager):
                 )
 
             locked_taakopdracht_updated_fields = []
-            resolutie_opgelost_herzien = taakgebeurtenis_validated_data.pop(
+            resolutie_opgelost_herzien = serializer.validated_data.pop(
                 "resolutie_opgelost_herzien", False
             )
-            taakgebeurtenis_validated_data.update({"taakopdracht": locked_taakopdracht})
-            taakgebeurtenis = Taakgebeurtenis.objects.create(
-                **taakgebeurtenis_validated_data
+            taakgebeurtenis = serializer.save(
+                taakopdracht=locked_taakopdracht,
             )
             resolutie = taakgebeurtenis.resolutie
             if taakgebeurtenis.taakstatus:

@@ -242,8 +242,10 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
             context={"request": request},
         )
         if serializer.is_valid():
+            print(serializer.validated_data)
+            print(serializer.data)
             task_taakopdracht_notificatie.delay(
-                uuid, taakopdracht_uuid, serializer.validated_data
+                uuid, taakopdracht_uuid, serializer.data
             )
         logger.warning(
             f"taakopdracht_notificatie: serializer.errors={serializer.errors}"
@@ -262,6 +264,7 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         url_path="taakopdracht/(?P<taakopdracht_uuid>[^/.]+)",
     )
     def taakopdracht_verwijderen(self, request, uuid, taakopdracht_uuid):
+        from apps.meldingen.tasks import task_taakopdracht_verwijderen
         from apps.taken.models import Taakopdracht
 
         melding = self.get_object()
@@ -275,14 +278,11 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         if taakopdracht.verwijderd_op:
             raise serializers.ValidationError("Deze taakopdracht is al verwijderd")
 
-        taakgebeurtenis = Melding.acties.taakopdracht_verwijderen(
+        task_taakopdracht_verwijderen.delay(
             taakopdracht, gebruiker=request.GET.get("gebruiker")
         )
 
-        serializer = TaakopdrachtVerwijderenSerializer(
-            taakgebeurtenis, context={"request": request}
-        )
-        return Response(serializer.data)
+        return Response({})
 
     @extend_schema(
         description="Melding heropenen",

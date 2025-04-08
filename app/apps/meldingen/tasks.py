@@ -72,9 +72,10 @@ def task_taakopdracht_notificatie(
     self,
     melding_uuid,
     taakopdracht_uuid,
-    taakgebeurtenis_validated_data,
+    taakgebeurtenis_data,
 ):
     from apps.meldingen.models import Melding
+    from apps.taken.serializers import TaakopdrachtNotificatieSaveSerializer
 
     melding = Melding.objects.filter(uuid=melding_uuid).first()
 
@@ -88,11 +89,65 @@ def task_taakopdracht_notificatie(
     if not taakopdracht:
         return f"Warning: taakopdracht met uuid: {taakopdracht_uuid}, is niet gevonden voor melding met uuid: {melding_uuid}"
 
-    Melding.acties.taakopdracht_notificatie(
-        taakopdracht, taakgebeurtenis_validated_data
-    )
+    resultaat = {
+        "melding_uuid": melding_uuid,
+        "taakopdracht_uuid": taakopdracht_uuid,
+        "taakgebeurtenis_data": taakgebeurtenis_data,
+    }
 
-    return f"Taakopdracht notificatie: taakopdracht_uuid: {taakopdracht_uuid}, melding_uuid={melding_uuid}"
+    try:
+        if taakgebeurtenis_data.get("taakstatus"):
+            taakgebeurtenis_data["taakstatus"]["taakopdracht"] = taakopdracht.id
+        serializer = TaakopdrachtNotificatieSaveSerializer(
+            data=taakgebeurtenis_data,
+        )
+        if serializer.is_valid():
+            Melding.acties.taakopdracht_notificatie(taakopdracht, serializer)
+    except Exception as e:
+        resultaat.update(
+            {
+                "task_status": "failed",
+                "exception": e,
+            }
+        )
+        raise Exception(resultaat)
+
+    resultaat.update({"task_status": "success"})
+    return resultaat
+
+
+@shared_task(bind=True, base=BaseTaskWithRetry)
+def task_taakopdracht_verwijderen(
+    self,
+    taakopdracht_uuid,
+    gebruiker,
+):
+    from apps.meldingen.models import Melding
+    from apps.taken.models import Taakopdracht
+
+    taakopdracht = Taakopdracht.objects.filter(uuid=taakopdracht_uuid).first()
+
+    if not taakopdracht:
+        return f"Warning: taakopdracht met uuid: {taakopdracht_uuid}, is niet gevonden"
+
+    resultaat = {
+        "taakopdracht_uuid": taakopdracht_uuid,
+        "gebruiker": gebruiker,
+    }
+
+    try:
+        Melding.acties.taakopdracht_verwijderen(taakopdracht, gebruiker)
+    except Exception as e:
+        resultaat.update(
+            {
+                "task_status": "failed",
+                "exception": e,
+            }
+        )
+        raise Exception(resultaat)
+
+    resultaat.update({"task_status": "success"})
+    return resultaat
 
 
 @shared_task(bind=True)
