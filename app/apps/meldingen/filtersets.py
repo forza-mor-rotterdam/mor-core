@@ -288,7 +288,6 @@ class MeldingFilter(BasisFilter):
         if value:
             return queryset.filter(
                 locaties_voor_melding__begraafplaats__in=value,
-                locaties_voor_melding__primair=True,
             ).distinct()
         return queryset
 
