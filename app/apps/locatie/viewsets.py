@@ -2,6 +2,7 @@ from apps.locatie.models import Locatie
 from apps.locatie.serializers import BuurtWijkSerializer
 from config.context import db
 from django.conf import settings
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -47,11 +48,7 @@ class LocatieViewSet(
                     wijknaam__isnull=False,
                     plaatsnaam__isnull=False,
                 )
-                .exclude(
-                    buurtnaam="",
-                    wijknaam="",
-                    plaatsnaam="",
-                )
+                .exclude(Q(buurtnaam="") | Q(wijknaam="") | Q(plaatsnaam=""))
                 .values("buurtnaam", "wijknaam", "plaatsnaam")
                 .distinct()
                 .order_by("plaatsnaam", "wijknaam", "buurtnaam")
