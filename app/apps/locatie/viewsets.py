@@ -47,6 +47,11 @@ class LocatieViewSet(
                     wijknaam__isnull=False,
                     plaatsnaam__isnull=False,
                 )
+                .exclude(
+                    buurtnaam="",
+                    wijknaam="",
+                    plaatsnaam="",
+                )
                 .values("buurtnaam", "wijknaam", "plaatsnaam")
                 .distinct()
                 .order_by("plaatsnaam", "wijknaam", "buurtnaam")
