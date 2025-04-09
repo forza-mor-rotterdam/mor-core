@@ -261,6 +261,11 @@ def task_taak_verwijderen(self, taakopdracht_id, gebruiker=None):
 
     taakopdracht = Taakopdracht.objects.get(id=taakopdracht_id)
 
+    if not taakopdracht.taak_url:
+        raise Exception(
+            f"De taak kan niet worden verwijderd omdat de taak_url voor de taakapplicatie ontbreekt: taakaaplicatie={taakopdracht.applicatie.naam}, taakopdracht_id={taakopdracht.id}."
+        )
+
     taak_verwijderen_response = taakopdracht.applicatie.taak_verwijderen(
         taakopdracht.taak_url,
         gebruiker=gebruiker,
