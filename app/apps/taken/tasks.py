@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from celery import Task, shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
@@ -189,6 +191,11 @@ def task_taak_aanmaken(self, taakgebeurtenis_id, check_taak_url=True):
         additionele_informatie.update({"taak_url": taakopdracht.taak_url})
         taakgebeurtenis.additionele_informatie = additionele_informatie
         taakgebeurtenis.save()
+        if taak_aanmaken_response.get("aangemaakt_op"):
+            taakgebeurtenis.aangemaakt_op = datetime.fromisoformat(
+                taak_aanmaken_response.get("aangemaakt_op")
+            )
+            taakgebeurtenis.save()
 
     return f"De taak is aangemaakt in {taakopdracht.applicatie.naam}, o.b.v. taakopdracht met id: {taakopdracht.id} en FixeR taak met id: {taak_aanmaken_response.get('id')}."
 
