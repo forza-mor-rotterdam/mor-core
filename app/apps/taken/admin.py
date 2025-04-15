@@ -9,6 +9,7 @@ from apps.taken.tasks import (
     task_taak_status_aanpassen,
 )
 from django.contrib import admin, messages
+from django.db import transaction
 from django.utils.safestring import mark_safe
 from django_celery_beat.admin import PeriodicTaskAdmin
 from django_celery_beat.models import PeriodicTask
@@ -43,6 +44,28 @@ def action_update_fixer_taak_status(modeladmin, request, queryset):
             )
 
 
+@admin.action(
+    description="Verwijder geselecteerde taakgebeurtenissen met meldinggebeurtenis"
+)
+def action_verwijder_taakgebeurtenis_met_meldinggebeurtenis(
+    modeladmin, request, queryset
+):
+    from apps.meldingen.models import Meldinggebeurtenis
+
+    with transaction.atomic():
+        deleted_meldinggebeurtenissen = Meldinggebeurtenis.objects.filter(
+            taakgebeurtenis__in=queryset
+        ).delete()
+        deleted_taakgebeurtenissen = queryset.delete()
+
+        transaction.on_commit(
+            lambda: messages.info(
+                request,
+                f"Verwijderd met taakgebeurtenissen: {deleted_taakgebeurtenissen}, en verwijderd met meldinggebeurtenissen: {deleted_meldinggebeurtenissen}",
+            )
+        )
+
+
 class TaakstatusAdmin(admin.ModelAdmin):
     list_display = (
         "id",
@@ -70,9 +93,12 @@ class TaakgebeurtenisAdmin(admin.ModelAdmin):
         "taakstatus",
         "taakopdracht",
     )
-    search_fields = ("taakopdracht__melding__uuid",)
+    search_fields = ("taakopdracht__melding__uuid", "taakopdracht__uuid", "uuid")
     date_hierarchy = "aangemaakt_op"
-    actions = (action_update_fixer_taak_status,)
+    actions = (
+        action_update_fixer_taak_status,
+        action_verwijder_taakgebeurtenis_met_meldinggebeurtenis,
+    )
 
     def melding_uuid(self, obj):
         return obj.taakopdracht.melding.uuid

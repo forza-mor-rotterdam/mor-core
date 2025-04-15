@@ -204,8 +204,9 @@ class TaakopdrachtNotificatieSerializer(serializers.ModelSerializer):
 
 class TaakopdrachtNotificatieSaveSerializer(WritableNestedModelSerializer):
     bijlagen = BijlageSerializer(many=True, required=False, allow_null=True)
-    taakstatus = TaakstatusSerializer(required=True)
+    taakstatus = TaakstatusSerializer(required=False, allow_null=True)
     resolutie = serializers.CharField(required=False, allow_null=True)
+    aangemaakt_op = serializers.DateTimeField(required=False, allow_null=True)
     resolutie_opgelost_herzien = serializers.BooleanField(
         required=False, allow_null=True
     )
@@ -235,6 +236,7 @@ class TaakopdrachtNotificatieSaveSerializer(WritableNestedModelSerializer):
             "omschrijving_intern",
             "gebruiker",
             "resolutie_opgelost_herzien",
+            "aangemaakt_op",
         )
 
 

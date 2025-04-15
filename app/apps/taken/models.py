@@ -164,6 +164,23 @@ class Taakopdracht(BasisModel):
         verbose_name = "Taakopdracht"
         verbose_name_plural = "Taakopdrachten"
 
+    @property
+    def is_voltooid(self):
+        return (
+            self.status
+            and self.status.naam
+            in [
+                Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
+                Taakstatus.NaamOpties.VOLTOOID,
+            ]
+            or self.verwijderd_op
+        )
+
+    def valideer_en_set_resolutie(self, nieuwe_resolutie):
+        self.resolutie = Taakopdracht.ResolutieOpties.OPGELOST
+        if nieuwe_resolutie in [ro[0] for ro in Taakopdracht.ResolutieOpties.choices]:
+            self.resolutie = nieuwe_resolutie
+
     def clean(self):
         if self.pk is None:
             openstaande_taken = self.melding.taakopdrachten_voor_melding.exclude(

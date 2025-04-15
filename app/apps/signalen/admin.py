@@ -28,7 +28,11 @@ class SignaalAdmin(admin.ModelAdmin):
 
     # Register the admin action
     actions = [convert_to_aanvullende_vragen]
-
+    search_fields = [
+        "bron_signaal_id",
+        "uuid",
+        "melding__uuid",
+    ]
     raw_id_fields = (
         "melding",
         "melder",

@@ -221,7 +221,6 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         permission_classes=(),
     )
     def taakopdracht_notificatie(self, request, uuid, taakopdracht_uuid):
-        from apps.meldingen.tasks import task_taakopdracht_notificatie
         from apps.taken.models import Taakopdracht
 
         melding = self.get_object()
@@ -235,18 +234,18 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         data = {}
         data.update(request.data)
 
+        if taakopdracht.is_verwijderd:
+            return Response({})
+        if taakopdracht.is_voltooid and not data.get("resolutie_opgelost_herzien"):
+            return Response({})
+
         if data.get("taakstatus"):
             data["taakstatus"]["taakopdracht"] = taakopdracht.id
         serializer = TaakopdrachtNotificatieSaveSerializer(
             data=data,
-            context={"request": request},
         )
         if serializer.is_valid():
-            print(serializer.validated_data)
-            print(serializer.data)
-            task_taakopdracht_notificatie.delay(
-                uuid, taakopdracht_uuid, serializer.data
-            )
+            Melding.acties.taakopdracht_notificatie(taakopdracht, data)
         logger.warning(
             f"taakopdracht_notificatie: serializer.errors={serializer.errors}"
         )
@@ -264,7 +263,6 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         url_path="taakopdracht/(?P<taakopdracht_uuid>[^/.]+)",
     )
     def taakopdracht_verwijderen(self, request, uuid, taakopdracht_uuid):
-        from apps.meldingen.tasks import task_taakopdracht_verwijderen
         from apps.taken.models import Taakopdracht
 
         melding = self.get_object()
@@ -278,8 +276,8 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         if taakopdracht.verwijderd_op:
             raise serializers.ValidationError("Deze taakopdracht is al verwijderd")
 
-        task_taakopdracht_verwijderen.delay(
-            taakopdracht, gebruiker=request.GET.get("gebruiker")
+        Melding.acties.taakopdracht_verwijderen(
+            taakopdracht, request.GET.get("gebruiker")
         )
 
         return Response({})
@@ -398,7 +396,7 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
                 taakopdracht, context={"request": request}
             )
             return Response(serializer.data, status.HTTP_201_CREATED)
-
+        logger.warning(f"taakopdracht_aanmaken: {serializer.errors}")
         return Response(
             data=serializer.errors,
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
