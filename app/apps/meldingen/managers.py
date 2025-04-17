@@ -281,25 +281,12 @@ class MeldingManager(models.Manager):
             )
 
     def gebeurtenis_toevoegen(self, serializer, melding, db="default"):
-        from apps.meldingen.models import Melding
-
         if melding.afgesloten_op:
             raise MeldingManager.MeldingAfgeslotenFout(
                 f"Voor een afgsloten melding kunnen geen gebeurtenissen worden aangemaakt. melding nummer: {melding.id}, melding uuid: {melding.uuid}"
             )
 
         with transaction.atomic():
-            try:
-                locked_melding = (
-                    Melding.objects.using(db)
-                    .select_for_update(nowait=True)
-                    .get(pk=melding.pk)
-                )
-            except OperationalError:
-                raise MeldingManager.MeldingInGebruik(
-                    f"De melding is op dit moment in gebruik, probeer het later nog eens. melding nummer: {melding.id}, melding uuid: {melding.uuid}"
-                )
-
             if locatie := serializer.validated_data.get("locatie"):
                 locatie["melding"] = melding
                 melding.locaties_voor_melding.update(primair=False)
@@ -314,11 +301,10 @@ class MeldingManager(models.Manager):
 
             meldinggebeurtenis = serializer.save(melding=melding, locatie=locatie)
 
-            locked_melding.save()
             transaction.on_commit(
                 lambda: gebeurtenis_toegevoegd.send_robust(
                     sender=self.__class__,
-                    melding=locked_melding,
+                    melding=melding,
                     meldinggebeurtenis=meldinggebeurtenis,
                 )
             )
@@ -374,6 +360,8 @@ class MeldingManager(models.Manager):
             )
 
         with transaction.atomic():
+            locked_melding = melding
+
             taak_data = {}
             taak_data.update(serializer.validated_data)
             # taakr_taaktype_url = Applicatie.vind_applicatie_obv_uri(
@@ -611,6 +599,7 @@ class MeldingManager(models.Manager):
                     f"De taak is op dit moment in gebruik, probeer het later nog eens. melding nummer: {taakopdracht.id}, melding uuid: {taakopdracht.uuid}"
                 )
 
+            locked_melding = locked_taakopdracht.melding
             now = timezone.now()
 
             taakgebeurtenis = Taakgebeurtenis(

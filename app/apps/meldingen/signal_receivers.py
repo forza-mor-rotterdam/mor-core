@@ -19,11 +19,7 @@ from apps.meldingen.tasks import (
 )
 from apps.status.models import Status
 from apps.taken.models import Taakgebeurtenis, Taakstatus
-from apps.taken.tasks import (
-    task_taak_aanmaken,
-    task_taak_status_aanpassen,
-    task_taak_verwijderen,
-)
+from apps.taken.tasks import task_taak_aanmaken, task_taak_verwijderen
 from celery import chord
 from django.dispatch import receiver
 
@@ -88,8 +84,9 @@ def afgesloten_handler(sender, melding, *args, **kwargs):
         taakopdracht__melding=melding,
         additionele_informatie__taak_url__isnull=True,
     ):
-        task_taak_status_aanpassen.delay(
-            taakgebeurtenis_id=taakgebeurtenis.id,
+        task_taak_verwijderen.delay(
+            taakopdracht_id=taakgebeurtenis.taakopdracht.id,
+            gebruiker=taakgebeurtenis.gebruiker,
         )
 
     if melding.status.naam == Status.NaamOpties.AFGEHANDELD:

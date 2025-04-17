@@ -3,11 +3,6 @@ import importlib
 import json
 
 from apps.taken.models import Taakgebeurtenis, Taakopdracht, Taakstatus
-from apps.taken.tasks import (
-    task_fix_taakopdracht_issues,
-    task_taak_aanmaken,
-    task_taak_status_aanpassen,
-)
 from django.contrib import admin, messages
 from django.db import transaction
 from django.utils.safestring import mark_safe
@@ -25,23 +20,6 @@ from .admin_filters import (
     TaakUrlFilter,
     TitelFilter,
 )
-
-
-@admin.action(description="Update fixer taak status")
-def action_update_fixer_taak_status(modeladmin, request, queryset):
-    for taakgebeurtenis in queryset.all():
-        if taakgebeurtenis.taakstatus.naam in [
-            Taakstatus.NaamOpties.VOLTOOID,
-            Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
-        ]:
-            task_taak_status_aanpassen.delay(
-                taakgebeurtenis_id=taakgebeurtenis.id,
-                voorkom_dubbele_sync=False,
-            )
-        if taakgebeurtenis.taakstatus.naam == Taakstatus.NaamOpties.NIEUW:
-            task_taak_aanmaken.delay(
-                taakgebeurtenis_id=taakgebeurtenis.id,
-            )
 
 
 @admin.action(
@@ -95,10 +73,7 @@ class TaakgebeurtenisAdmin(admin.ModelAdmin):
     )
     search_fields = ("taakopdracht__melding__uuid", "taakopdracht__uuid", "uuid")
     date_hierarchy = "aangemaakt_op"
-    actions = (
-        action_update_fixer_taak_status,
-        action_verwijder_taakgebeurtenis_met_meldinggebeurtenis,
-    )
+    actions = (action_verwijder_taakgebeurtenis_met_meldinggebeurtenis,)
 
     def melding_uuid(self, obj):
         return obj.taakopdracht.melding.uuid
@@ -135,15 +110,6 @@ def action_set_taak_afgesloten_op_for_melding_afgesloten(modeladmin, request, qu
             taakopdracht.save()
 
 
-@admin.action(description="Fix problemen met taakopdrachten")
-def action_task_fix_taakopdracht_issues(self, request, queryset):
-    for taakopdracht in queryset.all():
-        task_fix_taakopdracht_issues.delay(taakopdracht.id)
-    self.message_user(
-        request, f"Updating fixer taak for {len(queryset.all())} taakopdrachten!"
-    )
-
-
 class TaakopdrachtAdmin(admin.ModelAdmin):
     list_display = (
         "id",
@@ -160,10 +126,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
         "pretty_status",
         "resolutie",
     )
-    actions = (
-        action_set_taak_afgesloten_op_for_melding_afgesloten,
-        action_task_fix_taakopdracht_issues,
-    )
+    actions = (action_set_taak_afgesloten_op_for_melding_afgesloten,)
     list_filter = (
         StatusFilter,
         ResolutieFilter,

@@ -234,13 +234,19 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         data = {}
         data.update(request.data)
 
-        if taakopdracht.is_verwijderd:
+        if taakopdracht.verwijderd_op:
             return Response({})
         if taakopdracht.is_voltooid and not data.get("resolutie_opgelost_herzien"):
             return Response({})
 
         if data.get("taakstatus"):
             data["taakstatus"]["taakopdracht"] = taakopdracht.id
+            if data["taakstatus"]["naam"] == taakopdracht.status.naam:
+                logger.warning(
+                    f"taakopdracht_notificatie: de nieuwe status mag niet hetzelfde zijn als de huidige, taakopdracht_id={taakopdracht.id}"
+                )
+                return Response({})
+
         serializer = TaakopdrachtNotificatieSaveSerializer(
             data=data,
         )
