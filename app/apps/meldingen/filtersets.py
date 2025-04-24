@@ -264,7 +264,7 @@ class MeldingFilter(BasisFilter):
                 combined_q &= Q(id__in=signaal_melding_ids) | Q(
                     id__in=locatie_melding_ids
                 )
-            queryset = queryset.filter(combined_q)
+            return queryset.filter(combined_q).distinct()
 
         return queryset
 
