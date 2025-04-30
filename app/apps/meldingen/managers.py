@@ -468,6 +468,12 @@ class MeldingManager(models.Manager):
             )
             return
 
+        if taakopdracht.taakgebeurtenissen_voor_taakopdracht.filter(
+            aangemaakt_op=serializer.validated_data.get("aangemaakt_op")
+        ):
+            logger.warning("taakopdracht_notificatie: deze Taakgebeurtenis bestaat al")
+            return
+
         with transaction.atomic():
             try:
                 locked_melding = (

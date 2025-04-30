@@ -225,6 +225,7 @@ class TaakopdrachtNotificatieSaveSerializer(WritableNestedModelSerializer):
             raise serializers.ValidationError(
                 "Als de taakopdracht wordt voltooid is een resolutie noodzakelijk"
             )
+
         return data
 
     class Meta:

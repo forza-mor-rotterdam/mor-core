@@ -23,14 +23,10 @@ class BijlageSerializer(serializers.ModelSerializer):
     afbeelding_verkleind_relative_url = serializers.SerializerMethodField()
 
     def get_afbeelding_relative_url(self, obj):
-        return obj.afbeelding.url if hasattr(obj, "afbeelding") else None
+        return obj.afbeelding.url if obj.afbeelding else None
 
     def get_afbeelding_verkleind_relative_url(self, obj):
-        return (
-            obj.afbeelding_verkleind.url
-            if hasattr(obj, "afbeelding_verkleind")
-            else None
-        )
+        return obj.afbeelding_verkleind.url if obj.afbeelding_verkleind else None
 
     class Meta:
         model = Bijlage

@@ -219,6 +219,7 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         methods=["post"],
         url_path="taakopdracht/(?P<taakopdracht_uuid>[^/.]+)/notificatie",
         permission_classes=(),
+        name="taakopdracht-notificatie",
     )
     def taakopdracht_notificatie(self, request, uuid, taakopdracht_uuid):
         from apps.taken.models import Taakopdracht
