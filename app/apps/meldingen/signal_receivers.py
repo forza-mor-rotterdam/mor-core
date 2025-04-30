@@ -7,7 +7,7 @@ from apps.meldingen.managers import (
     signaal_aangemaakt,
     status_aangepast,
     taakopdracht_aangemaakt,
-    taakopdracht_status_aangepast,
+    taakopdracht_notificatie,
     taakopdracht_verwijderd,
     urgentie_aangepast,
     verwijderd,
@@ -19,11 +19,7 @@ from apps.meldingen.tasks import (
 )
 from apps.status.models import Status
 from apps.taken.models import Taakgebeurtenis, Taakstatus
-from apps.taken.tasks import (
-    task_taak_aanmaken,
-    task_taak_status_aanpassen,
-    task_taak_verwijderen,
-)
+from apps.taken.tasks import task_taak_aanmaken, task_taak_verwijderen
 from celery import chord
 from django.dispatch import receiver
 
@@ -88,8 +84,9 @@ def afgesloten_handler(sender, melding, *args, **kwargs):
         taakopdracht__melding=melding,
         additionele_informatie__taak_url__isnull=True,
     ):
-        task_taak_status_aanpassen.delay(
-            taakgebeurtenis_id=taakgebeurtenis.id,
+        task_taak_verwijderen.delay(
+            taakopdracht_id=taakgebeurtenis.taakopdracht.id,
+            gebruiker=taakgebeurtenis.gebruiker,
         )
 
     if melding.status.naam == Status.NaamOpties.AFGEHANDELD:
@@ -151,15 +148,12 @@ def taakopdracht_aangemaakt_handler(
     )
 
 
-@receiver(taakopdracht_status_aangepast, dispatch_uid="taakopdracht_status_aangepast")
+@receiver(taakopdracht_notificatie, dispatch_uid="taakopdracht_notificatie")
 def taakopdracht_status_aangepast_handler(
     sender, melding, taakopdracht, taakgebeurtenis, *args, **kwargs
 ):
     if kwargs.get("raw"):
         return
-    task_taak_status_aanpassen.delay(
-        taakgebeurtenis_id=taakgebeurtenis.id,
-    )
 
     bijlages_aanmaken = [
         task_aanmaken_afbeelding_versies.s(bijlage.pk)
@@ -167,7 +161,7 @@ def taakopdracht_status_aangepast_handler(
     ]
     notificaties_voor_melding_veranderd = task_notificaties_voor_melding_veranderd.s(
         melding_url=melding.get_absolute_url(),
-        notificatie_type="taakopdracht_status_aangepast",
+        notificatie_type="taakopdracht_notificatie",
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
 

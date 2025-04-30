@@ -219,9 +219,10 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         methods=["post"],
         url_path="taakopdracht/(?P<taakopdracht_uuid>[^/.]+)/notificatie",
         permission_classes=(),
+        name="taakopdracht-notificatie",
     )
     def taakopdracht_notificatie(self, request, uuid, taakopdracht_uuid):
-        from apps.taken.models import Taakopdracht, Taakstatus
+        from apps.taken.models import Taakopdracht
 
         melding = self.get_object()
         try:
@@ -234,35 +235,27 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         data = {}
         data.update(request.data)
 
-        IS_VOLTOOID_MET_FEEDBACK = (
-            taakopdracht.status.naam == Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK
-        )
-        IS_VOLTOOID_MET_HERZIEN = (
-            taakopdracht.status.naam == Taakstatus.NaamOpties.VOLTOOID
-            and not request.data.get("resolutie_opgelost_herzien", False)
-        )
-        IS_VORIGE_STATUS = taakopdracht.status.naam == data.get("taakstatus", {}).get(
-            "naam"
-        )
-        if (
-            taakopdracht.verwijderd_op
-            or IS_VOLTOOID_MET_FEEDBACK
-            or IS_VOLTOOID_MET_HERZIEN
-            or IS_VORIGE_STATUS
-        ):
+        if taakopdracht.verwijderd_op:
+            return Response({})
+        if taakopdracht.is_voltooid and not data.get("resolutie_opgelost_herzien"):
             return Response({})
 
-        print(data)
         if data.get("taakstatus"):
             data["taakstatus"]["taakopdracht"] = taakopdracht.id
-        print(data)
+            if data["taakstatus"]["naam"] == taakopdracht.status.naam:
+                logger.warning(
+                    f"taakopdracht_notificatie: de nieuwe status mag niet hetzelfde zijn als de huidige, taakopdracht_id={taakopdracht.id}"
+                )
+                return Response({})
+
         serializer = TaakopdrachtNotificatieSaveSerializer(
             data=data,
-            context={"request": request},
         )
         if serializer.is_valid():
-            print("is valid")
-            Melding.acties.taakopdracht_notificatie(taakopdracht, serializer)
+            Melding.acties.taakopdracht_notificatie(taakopdracht, data)
+        logger.warning(
+            f"taakopdracht_notificatie: serializer.errors={serializer.errors}"
+        )
         return Response({})
 
     @extend_schema(
@@ -290,14 +283,11 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         if taakopdracht.verwijderd_op:
             raise serializers.ValidationError("Deze taakopdracht is al verwijderd")
 
-        taakgebeurtenis = Melding.acties.taakopdracht_verwijderen(
-            taakopdracht, gebruiker=request.GET.get("gebruiker")
+        Melding.acties.taakopdracht_verwijderen(
+            taakopdracht, request.GET.get("gebruiker")
         )
 
-        serializer = TaakopdrachtVerwijderenSerializer(
-            taakgebeurtenis, context={"request": request}
-        )
-        return Response(serializer.data)
+        return Response({})
 
     @extend_schema(
         description="Melding heropenen",
@@ -413,7 +403,7 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
                 taakopdracht, context={"request": request}
             )
             return Response(serializer.data, status.HTTP_201_CREATED)
-
+        logger.warning(f"taakopdracht_aanmaken: {serializer.errors}")
         return Response(
             data=serializer.errors,
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

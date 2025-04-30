@@ -8,6 +8,7 @@ from apps.meldingen.models import Melding
 from apps.status.models import Status
 from apps.taken.models import Taakgebeurtenis
 from django.urls import reverse
+from django.utils import timezone
 from model_bakery import baker
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -94,6 +95,17 @@ class TaakopdrachtStatusAanpassenApiTest(APITestCase):
         "taaktype": MOCK_URL,
         "bericht": tekst_minder_dan_500,
     }
+    taakopdracht_notificatie_data = {
+        "bijlagen": [
+            {
+                "bestand": b64_file,
+            },
+            {
+                "bestand": b64_file,
+            },
+        ],
+        "omschrijving_intern": tekst_tussen_500_en_5000,
+    }
     taakopdracht_status_aanpassen_data = {
         "bijlagen": [
             {
@@ -122,7 +134,7 @@ class TaakopdrachtStatusAanpassenApiTest(APITestCase):
             valide_basis_urls=[MOCK_URL],
         )
 
-    def test_taakopdracht_status_aanpassen(self):
+    def test_taakopdracht_notificatie(self):
         client = get_authenticated_client()
         melding = baker.make(Melding, status=baker.make(Status))
         url_aanmaken = reverse(
@@ -132,15 +144,49 @@ class TaakopdrachtStatusAanpassenApiTest(APITestCase):
         status_aanpassen_data = self.taakopdracht_status_aanpassen_data
         response = client.post(url_aanmaken, data=data, format="json")
         url_status_aanpassen = reverse(
-            "app:taakopdracht-status-aanpassen",
-            kwargs={"uuid": response.json().get("uuid")},
+            "app:melding-taakopdracht-notificatie",
+            kwargs={
+                "uuid": melding.uuid,
+                "taakopdracht_uuid": response.json().get("uuid"),
+            },
         )
-        response_status_aanpassen = client.patch(
+        response_status_aanpassen = client.post(
             url_status_aanpassen, data=status_aanpassen_data, format="json"
         )
         self.assertEqual(response_status_aanpassen.status_code, status.HTTP_200_OK)
 
-    def test_taakopdracht_status_aanpassen_zelfde_status(self):
+    def test_taakopdracht_notificatie_zelfde_notificatie(self):
+        client = get_authenticated_client()
+        melding = baker.make(Melding, status=baker.make(Status))
+        url_aanmaken = reverse(
+            "app:melding-taakopdracht-aanmaken", kwargs={"uuid": melding.uuid}
+        )
+        data = self.taakopdracht_data
+        taakopdracht_notificatie_data = copy.deepcopy(
+            self.taakopdracht_notificatie_data
+        )
+        nu = timezone.now().isoformat()
+        taakopdracht_notificatie_data["aangemaakt_op"] = nu
+        response = client.post(url_aanmaken, data=data, format="json")
+        url_notificatie = reverse(
+            "app:melding-taakopdracht-notificatie",
+            kwargs={
+                "uuid": melding.uuid,
+                "taakopdracht_uuid": response.json().get("uuid"),
+            },
+        )
+        response_url_notificatie = client.post(
+            url_notificatie, data=taakopdracht_notificatie_data, format="json"
+        )
+        self.assertEqual(response_url_notificatie.status_code, status.HTTP_200_OK)
+        self.assertEqual(Taakgebeurtenis.objects.count(), 2)
+        response_url_notificatie_2 = client.post(
+            url_notificatie, data=taakopdracht_notificatie_data, format="json"
+        )
+        self.assertEqual(response_url_notificatie_2.status_code, status.HTTP_200_OK)
+        self.assertEqual(Taakgebeurtenis.objects.count(), 2)
+
+    def test_taakopdracht_notificatie_zelfde_status(self):
         client = get_authenticated_client()
         melding = baker.make(Melding, status=baker.make(Status))
         url_aanmaken = reverse(
@@ -151,21 +197,18 @@ class TaakopdrachtStatusAanpassenApiTest(APITestCase):
         status_aanpassen_data.update({"taakstatus": {"naam": "nieuw"}})
         response = client.post(url_aanmaken, data=data, format="json")
         url_status_aanpassen = reverse(
-            "app:taakopdracht-status-aanpassen",
-            kwargs={"uuid": response.json().get("uuid")},
+            "app:melding-taakopdracht-notificatie",
+            kwargs={
+                "uuid": melding.uuid,
+                "taakopdracht_uuid": response.json().get("uuid"),
+            },
         )
-        response_status_aanpassen = client.patch(
+        response_status_aanpassen = client.post(
             url_status_aanpassen, data=status_aanpassen_data, format="json"
         )
-        self.assertEqual(
-            response_status_aanpassen.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-        self.assertEqual(
-            response_status_aanpassen.json().get("detail"),
-            "De nieuwe taakstatus mag niet hezelfde zijn als de huidige",
-        )
+        self.assertEqual(response_status_aanpassen.status_code, status.HTTP_200_OK)
 
-    def test_taakopdracht_status_aanpassen_foute_bijlagen(self):
+    def test_taakopdracht_notificatie_foute_bijlagen(self):
         client = get_authenticated_client()
         melding = baker.make(Melding, status=baker.make(Status))
         url_aanmaken = reverse(
@@ -184,10 +227,13 @@ class TaakopdrachtStatusAanpassenApiTest(APITestCase):
         )
         response = client.post(url_aanmaken, data=data, format="json")
         url_status_aanpassen = reverse(
-            "app:taakopdracht-status-aanpassen",
-            kwargs={"uuid": response.json().get("uuid")},
+            "app:melding-taakopdracht-notificatie",
+            kwargs={
+                "uuid": melding.uuid,
+                "taakopdracht_uuid": response.json().get("uuid"),
+            },
         )
-        client.patch(url_status_aanpassen, data=status_aanpassen_data, format="json")
+        client.post(url_status_aanpassen, data=status_aanpassen_data, format="json")
         taakgebeurtenissen = Taakgebeurtenis.objects.all()
         bijlagen = Bijlage.objects.all()
         self.assertEqual(taakgebeurtenissen.count(), 2)

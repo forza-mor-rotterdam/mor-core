@@ -147,6 +147,7 @@ class Melding(BasisModel):
     def get_adressen(self):
         return self.locaties_voor_melding
 
+    @property
     def actieve_taakopdrachten(self):
         from apps.taken.models import Taakstatus
 
@@ -154,7 +155,8 @@ class Melding(BasisModel):
             status__naam__in=[
                 Taakstatus.NaamOpties.VOLTOOID,
                 Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
-            ]
+            ],
+            verwijderd_op__isnull=False,
         )
 
     def get_absolute_url(self):

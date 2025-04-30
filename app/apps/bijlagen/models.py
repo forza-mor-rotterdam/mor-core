@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import mimetypes
 import os
@@ -35,6 +36,7 @@ class Bijlage(BasisModel):
     )
 
     mimetype = models.CharField(max_length=30, blank=False, null=False)
+    bestand_hash = models.CharField(max_length=50, blank=True, null=True)
     is_afbeelding = models.BooleanField(default=False)
     opgeruimd_op = models.DateTimeField(null=True, blank=True)
 
@@ -115,6 +117,7 @@ class Bijlage(BasisModel):
         mt = mimetypes.guess_type(self.bestand.path, strict=True)
         if exists(self.bestand.path):
             bestand = self.bestand.path
+            self.bestand_hash = hashlib.md5(self.bestand.file.read()).hexdigest()
             self.is_afbeelding = self._is_afbeelding()
             if mt:
                 self.mimetype = mt[0]
