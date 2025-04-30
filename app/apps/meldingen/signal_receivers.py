@@ -16,6 +16,7 @@ from apps.meldingen.tasks import (
     task_bijlages_voor_geselecteerde_meldingen_opruimen,
     task_notificatie_voor_signaal_melding_afgesloten,
     task_notificaties_voor_melding_veranderd,
+    task_vernieuw_melding_zoek_tekst,
 )
 from apps.status.models import Status
 from apps.taken.models import Taakgebeurtenis, Taakstatus
@@ -39,6 +40,7 @@ def signaal_aangemaakt_handler(sender, melding, signaal, *args, **kwargs):
         notificatie_type="signaal_aangemaakt",
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
+    task_vernieuw_melding_zoek_tekst.delay(melding.id)
 
 
 @receiver(status_aangepast, dispatch_uid="melding_status_aangepast")
@@ -111,6 +113,9 @@ def gebeurtenis_toegevoegd_handler(
         notificatie_type="gebeurtenis_toegevoegd",
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
+
+    if meldinggebeurtenis.locatie:
+        task_vernieuw_melding_zoek_tekst.delay(melding.id)
 
 
 @receiver(verwijderd, dispatch_uid="melding_verwijderd")

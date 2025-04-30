@@ -174,3 +174,32 @@ def task_bijlages_voor_melding_opruimen(self, melding_id):
     #         one_off=True,
     #         args=[bijlage.id],
     #     )
+
+
+@shared_task(bind=True)
+def task_vernieuw_melding_zoek_tekst_voor_melding_reeks(
+    self, start_index=None, eind_index=None, order_by="id"
+):
+    from apps.meldingen.models import Melding
+
+    for melding_id in list(
+        Melding.objects.all().order_by(order_by).values_list("id", flat=True)
+    )[start_index:eind_index]:
+        task_vernieuw_melding_zoek_tekst.delay(melding_id)
+
+    return f"Melding zoek tekst vernieuwen voor, start_index={start_index}, eind_index={eind_index}"
+
+
+@shared_task(bind=True)
+def task_vernieuw_melding_zoek_tekst(self, melding_id):
+    from apps.meldingen.models import Melding
+
+    melding = Melding.objects.filter(id=melding_id).first()
+
+    if not melding:
+        return f"Melding met id={melding_id}, is nog niet gevonden"
+
+    melding.zoek_tekst = melding.get_zoek_tekst()
+    melding.save(update_fields=["zoek_tekst"])
+
+    return f"Melding zoek tekst vernieuwd voor melding_id={melding_id}"

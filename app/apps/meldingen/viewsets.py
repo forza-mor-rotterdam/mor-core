@@ -1,5 +1,6 @@
 import logging
 
+from apps.locatie.models import Locatie
 from apps.meldingen.filtersets import MeldingFilter, RelatedOrderingFilter
 from apps.meldingen.models import Melding, Meldinggebeurtenis
 from apps.meldingen.serializers import (
@@ -18,6 +19,7 @@ from apps.taken.serializers import (
 )
 from config.context import db
 from django.conf import settings
+from django.db.models import Prefetch
 from django.http import Http404, JsonResponse
 from django_filters import rest_framework as filters
 from drf_spectacular.types import OpenApiTypes
@@ -120,7 +122,10 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         )
         .prefetch_related(
             "onderwerpen",
-            "locaties_voor_melding",
+            Prefetch(
+                "locaties_voor_melding",
+                queryset=Locatie.objects.exclude(locatie_type="lichtmast"),
+            ),
             "signalen_voor_melding__bijlagen",
             "bijlagen",
             "meldinggebeurtenissen_voor_melding__bijlagen",
@@ -136,7 +141,31 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         filters.DjangoFilterBackend,
         RelatedOrderingFilter,
     )
-    ordering_fields = "__all_related__"
+    # ordering_fields = "__all_related__"
+    ordering_fields = [
+        "id",
+        "-id",
+        "straatnaam",
+        "-straatnaam",
+        "locaties_voor_melding__buurtnaam",
+        "-locaties_voor_melding__buurtnaam",
+        "locaties_voor_melding__wijknaam",
+        "-locaties_voor_melding__wijknaam",
+        # "onderwerp",
+        # "-onderwerp",
+        "locaties_voor_melding__vak",
+        "-locaties_voor_melding__vak",
+        "locaties_voor_melding__grafnummer",
+        "-locaties_voor_melding__grafnummer",
+        "locaties_voor_melding__begraafplaats",
+        "-locaties_voor_melding__begraafplaats",
+        "origineel_aangemaakt",
+        "-origineel_aangemaakt",
+        "status__naam",
+        "-status__naam",
+        "urgentie",
+        "-urgentie",
+    ]
     filterset_class = MeldingFilter
 
     def get_queryset(self):
@@ -172,6 +201,15 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
 
     def list(self, request):
         with db(settings.READONLY_DATABASE_KEY):
+            queryset = self.filter_queryset(self.get_queryset())
+
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
             return super().list(request)
 
     def retrieve(self, request, uuid=None):
