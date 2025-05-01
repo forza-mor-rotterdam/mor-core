@@ -4,6 +4,7 @@ import celery
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
+from django.db.models import OuterRef, Subquery
 from django_celery_beat.models import ClockedSchedule, PeriodicTask
 
 logger = get_task_logger(__name__)
@@ -203,3 +204,29 @@ def task_vernieuw_melding_zoek_tekst(self, melding_id):
     melding.save(update_fields=["zoek_tekst"])
 
     return f"Melding zoek tekst vernieuwd voor melding_id={melding_id}"
+
+
+@shared_task(bind=True)
+def task_set_melding_locatie(self):
+    from apps.locatie.models import Locatie
+    from apps.meldingen.models import Melding
+
+    locaties = Locatie.objects.filter(
+        melding=OuterRef("pk"),
+        locatie_type__in=["adres", "graf"],
+    ).order_by("-gewicht")
+
+    meldingen = Melding.objects.filter(
+        locatie__isnull=True,
+    ).annotate(
+        primair_locatie_id=Subquery(locaties.values("id")[:1]),
+    )
+
+    update_list = []
+    for melding in meldingen:
+        melding.locatie_id = melding.primair_locatie_id
+        update_list.append(melding)
+
+    Melding.objects.bulk_update(update_list, ["locatie"])
+
+    return f"Aantal geupdate locaties {len(meldingen)}"

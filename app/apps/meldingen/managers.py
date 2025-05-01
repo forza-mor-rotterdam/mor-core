@@ -104,7 +104,7 @@ class MeldingManager(models.Manager):
                 if first_locatie:
                     melding.locatie = first_locatie
                     first_locatie.primair = True
-                    first_locatie.gewicht = 0.3
+                    first_locatie.gewicht = 0.25
                     first_locatie.save()
 
                 status = Status()
@@ -286,7 +286,8 @@ class MeldingManager(models.Manager):
             )
 
     def gebeurtenis_toevoegen(self, serializer, melding, db="default"):
-        from apps.meldingen.models import Melding, Meldinggebeurtenis
+        from apps.meldingen.models import Melding
+
         if melding.afgesloten_op:
             raise MeldingManager.MeldingAfgeslotenFout(
                 f"Voor een afgsloten melding kunnen geen gebeurtenissen worden aangemaakt. melding nummer: {melding.id}, melding uuid: {melding.uuid}"
@@ -298,16 +299,18 @@ class MeldingManager(models.Manager):
             if locatie := serializer.validated_data.get("locatie"):
                 locatie["melding"] = locked_melding
                 locked_melding.locaties_voor_melding.update(primair=False)
-                max_gewicht = locked_melding.locaties_voor_melding.aggregate(Max("gewicht"))[
-                    "gewicht__max"
-                ]
+                max_gewicht = locked_melding.locaties_voor_melding.aggregate(
+                    Max("gewicht")
+                )["gewicht__max"]
                 gewicht = (
                     round(max_gewicht + 0.1, 2) if max_gewicht is not None else 0.2
                 )
                 locatie["gewicht"] = gewicht
                 locatie["primair"] = True
 
-            meldinggebeurtenis = serializer.save(melding=locked_melding, locatie=locatie)
+            meldinggebeurtenis = serializer.save(
+                melding=locked_melding, locatie=locatie
+            )
 
             if meldinggebeurtenis.locatie:
                 try:
