@@ -291,7 +291,7 @@ class Melding(BasisModel):
             )
         )
 
-        return "  ".join(
+        return ",".join(
             bron_signaal_ids
             + locatie_zoek_teksten
             + melders_voornaam_achternaam
