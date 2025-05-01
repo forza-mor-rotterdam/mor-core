@@ -84,6 +84,9 @@ class MeldingManager(models.Manager):
                     origineel_aangemaakt=signaal.origineel_aangemaakt,
                     urgentie=signaal.urgentie,
                 )
+                eerste_onderwerp = signaal.onderwerpen.first()
+                if eerste_onderwerp:
+                    melding.onderwerp = eerste_onderwerp.bron_url
                 for onderwerp in signaal.onderwerpen.all():
                     melding.onderwerpen.add(onderwerp)
                     onderwerp_response = OnderwerpenService().get_onderwerp(
@@ -99,7 +102,9 @@ class MeldingManager(models.Manager):
                     geometrie__isnull=False
                 ).first()
                 if first_locatie:
+                    melding.locatie = first_locatie
                     first_locatie.primair = True
+                    first_locatie.gewicht = 0.25
                     first_locatie.save()
 
                 status = Status()
@@ -281,30 +286,50 @@ class MeldingManager(models.Manager):
             )
 
     def gebeurtenis_toevoegen(self, serializer, melding, db="default"):
+        from apps.meldingen.models import Melding
+
         if melding.afgesloten_op:
             raise MeldingManager.MeldingAfgeslotenFout(
                 f"Voor een afgsloten melding kunnen geen gebeurtenissen worden aangemaakt. melding nummer: {melding.id}, melding uuid: {melding.uuid}"
             )
 
         with transaction.atomic():
+            locked_melding = melding
+
             if locatie := serializer.validated_data.get("locatie"):
-                locatie["melding"] = melding
-                melding.locaties_voor_melding.update(primair=False)
-                max_gewicht = melding.locaties_voor_melding.aggregate(Max("gewicht"))[
-                    "gewicht__max"
-                ]
+                locatie["melding"] = locked_melding
+                locked_melding.locaties_voor_melding.update(primair=False)
+                max_gewicht = locked_melding.locaties_voor_melding.aggregate(
+                    Max("gewicht")
+                )["gewicht__max"]
                 gewicht = (
                     round(max_gewicht + 0.1, 2) if max_gewicht is not None else 0.2
                 )
                 locatie["gewicht"] = gewicht
                 locatie["primair"] = True
 
-            meldinggebeurtenis = serializer.save(melding=melding, locatie=locatie)
+            meldinggebeurtenis = serializer.save(
+                melding=locked_melding, locatie=locatie
+            )
+
+            if meldinggebeurtenis.locatie:
+                try:
+                    locked_melding = (
+                        Melding.objects.using(db)
+                        .select_for_update(nowait=True)
+                        .get(pk=melding.pk)
+                    )
+                except OperationalError:
+                    raise MeldingManager.MeldingInGebruik(
+                        f"De melding is op dit moment in gebruik, probeer het later nog eens. melding nummer: {melding.id}, melding uuid: {melding.uuid}"
+                    )
+                locked_melding.locatie = meldinggebeurtenis.locatie
+                locked_melding.save()
 
             transaction.on_commit(
                 lambda: gebeurtenis_toegevoegd.send_robust(
                     sender=self.__class__,
-                    melding=melding,
+                    melding=locked_melding,
                     meldinggebeurtenis=meldinggebeurtenis,
                 )
             )

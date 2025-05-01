@@ -2,15 +2,14 @@ import logging
 from collections import OrderedDict
 from typing import List, Tuple
 
+from apps.aliassen.models import OnderwerpAlias
 from apps.locatie.models import Locatie
-from apps.melders.models import Melder
 from apps.meldingen.models import Melding
-from apps.signalen.models import Signaal
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.contrib.postgres.search import TrigramSimilarity
 from django.db import models
-from django.db.models import OuterRef, Q
+from django.db.models import OuterRef, Q, Subquery
 from django.db.models.functions import Greatest
 from django.forms.fields import CharField, MultipleChoiceField
 from django.utils.translation import gettext_lazy as _
@@ -237,34 +236,13 @@ class MeldingFilter(BasisFilter):
                 )
                 for term in search_terms
             ]
-            cleaned_search_terms = [term for term in cleaned_search_terms if term][:3]
+            cleaned_search_terms = [term for term in cleaned_search_terms if term]
 
             combined_q = Q()
             for term in cleaned_search_terms:
-                locaties_filtered = Locatie.objects.filter(
-                    locatie_zoek_field__icontains=term
-                )
-                locatie_signaal_ids = locaties_filtered.values_list(
-                    "signaal", flat=True
-                )
-                locatie_melding_ids = locaties_filtered.values_list(
-                    "melding", flat=True
-                )
+                combined_q &= Q(zoek_tekst__icontains=term)
 
-                melder_signaal_ids = Melder.objects.filter(
-                    Q(naam__iregex=term)
-                    | Q(email__iregex=term)
-                    | Q(telefoonnummer__iregex=term)
-                ).values_list("signaal", flat=True)
-                signaal_melding_ids = Signaal.objects.filter(
-                    Q(bron_signaal_id__iregex=term)
-                    | Q(id__in=melder_signaal_ids)
-                    | Q(id__in=locatie_signaal_ids)
-                ).values_list("melding", flat=True)
-                combined_q &= Q(id__in=signaal_melding_ids) | Q(
-                    id__in=locatie_melding_ids
-                )
-            queryset = queryset.filter(combined_q)
+            return queryset.filter(combined_q).distinct()
 
         return queryset
 
@@ -334,6 +312,31 @@ class MeldingPreFilter(MeldingFilter):
 
 class RelatedOrderingFilter(rest_filters.OrderingFilter):
     _max_related_depth = 3
+
+    def filter_queryset(self, request, queryset, view):
+        ordering = self.get_ordering(request, queryset, view)
+
+        if ordering:
+            straatnaam_ordering = ["straatnaam", "-straatnaam"]
+            onderwerp_ordering = ["onderwerp", "-onderwerp"]
+            if list(set(ordering) & set(onderwerp_ordering)):
+                onderwerpen = OnderwerpAlias.objects.filter(
+                    meldingen_voor_onderwerpen=OuterRef("pk")
+                )
+                queryset = queryset.annotate(
+                    onderwerp=Subquery(onderwerpen.values("response_json__name")[:1])
+                )
+            if list(set(ordering) & set(straatnaam_ordering)):
+                locaties = Locatie.objects.filter(
+                    melding=OuterRef("pk"),
+                ).order_by("-gewicht")
+                queryset = queryset.annotate(
+                    straatnaam=Subquery(locaties.values("straatnaam")[:1])
+                )
+            qs = queryset.order_by(*ordering)
+            return qs
+
+        return queryset
 
     @staticmethod
     def _get_verbose_name(field: models.Field, non_verbose_name: str) -> str:

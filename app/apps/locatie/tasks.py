@@ -51,7 +51,7 @@ def update_batch(self, locatie_ids):
     return f"Updated {len(locatie_ids)} locations"
 
 
-@shared_task(bind=True, base=BaseTaskWithRetry)
+@shared_task(bind=True)
 def task_update_locatie_primair(self):
     from apps.locatie.models import Locatie
     from apps.meldingen.models import Melding

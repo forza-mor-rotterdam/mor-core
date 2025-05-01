@@ -55,6 +55,7 @@ class MeldingAdmin(admin.ModelAdmin):
         "aangemaakt_op",
         "aangepast_op",
         "afgesloten_op",
+        "zoek_tekst",
     )
     list_filter = (
         StatusFilter,
@@ -73,7 +74,7 @@ class MeldingAdmin(admin.ModelAdmin):
         "afgesloten_op",
         "origineel_aangemaakt",
     )
-    raw_id_fields = ("status",)
+    raw_id_fields = ("status", "locatie")
     fieldsets = (
         (
             None,
@@ -125,18 +126,6 @@ class MeldingAdmin(admin.ModelAdmin):
         try:
             return ", ".join(
                 list(obj.onderwerpen.values_list("response_json__name", flat=True))
-            )
-        except Exception:
-            return "- leeg -"
-
-    def locatie(self, obj):
-        try:
-            return ", ".join(
-                list(
-                    obj.locaties_voor_melding.order_by("-gewicht").values_list(
-                        "wijknaam", flat=True
-                    )
-                )
             )
         except Exception:
             return "- leeg -"

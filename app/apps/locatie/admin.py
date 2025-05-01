@@ -63,6 +63,7 @@ class LocatieAdmin(admin.ModelAdmin):
         "id",
         "melding__uuid",
     ]
+    list_filter = ("primair",)
 
     # TODO: Remove later!!!
     formfield_overrides = {
