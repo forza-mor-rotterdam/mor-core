@@ -313,6 +313,10 @@ class Melding(BasisModel):
     def get_bijlagen(self, order_by="aangemaakt_op"):
         bijlagen = Bijlage.objects.filter(
             (
+                Q(object_id=self.id)
+                & Q(content_type=ContentType.objects.get_for_model(Melding))
+            )
+            | (
                 Q(object_id__in=self.signalen_voor_melding.values_list("id", flat=True))
                 & Q(content_type=ContentType.objects.get_for_model(Signaal))
             )
