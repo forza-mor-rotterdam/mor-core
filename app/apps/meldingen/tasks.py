@@ -230,3 +230,31 @@ def task_set_melding_locatie(self):
     Melding.objects.bulk_update(update_list, ["locatie"])
 
     return f"Aantal geupdate locaties {len(meldingen)}"
+
+
+@shared_task(bind=True)
+def task_set_melding_bijlage_voor_melding_reeks(
+    self, start_index=None, eind_index=None, order_by="id"
+):
+    from apps.meldingen.models import Melding
+
+    for melding_id in list(
+        Melding.objects.all().order_by(order_by).values_list("id", flat=True)
+    )[start_index:eind_index]:
+        task_set_melding_bijlage.delay(melding_id)
+
+    return f"Set bijlagen voor melding indexes, start_index={start_index}, eind_index={eind_index}"
+
+
+@shared_task(bind=True)
+def task_set_melding_bijlage(self, melding_id):
+    from apps.meldingen.models import Melding
+
+    melding = Melding.objects.get(id=melding_id)
+
+    melding_bijlage = melding.get_bijlagen().first()
+    if melding_bijlage:
+        melding.bijlage = melding_bijlage
+        melding.save(update_fields=["bijlage"])
+
+    return f"Bijlage {melding_bijlage}, voor melding_id={melding_id}"

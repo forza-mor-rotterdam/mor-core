@@ -1,6 +1,6 @@
 from apps.aliassen.serializers import OnderwerpAliasSerializer
 from apps.applicaties.models import Applicatie
-from apps.bijlagen.serializers import BijlageAlleenLezenSerializer, BijlageSerializer
+from apps.bijlagen.serializers import BijlageSerializer
 from apps.locatie.models import Adres, Graf, Lichtmast
 from apps.locatie.serializers import (
     AdresSerializer,
@@ -101,7 +101,6 @@ class MeldingSignaalSerializer(serializers.ModelSerializer):
 
 class SignaalMeldingListSerializer(serializers.ModelSerializer):
     _links = SignaalLinksSerializer(source="*", read_only=True)
-    bijlagen = BijlageAlleenLezenSerializer(many=True, read_only=True)  # OK
 
     class Meta:
         model = Signaal
@@ -110,7 +109,6 @@ class SignaalMeldingListSerializer(serializers.ModelSerializer):
             "bron_id",
             "bron_signaal_id",
             "aangemaakt_op",
-            "bijlagen",
         )
         read_only_fields = (
             "_links",

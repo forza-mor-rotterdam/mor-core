@@ -3,8 +3,11 @@ import logging
 from apps.bijlagen.models import Bijlage
 from apps.meldingen.managers import MeldingManager
 from apps.meldingen.querysets import MeldingQuerySet
+from apps.signalen.models import Signaal
+from apps.taken.models import Taakgebeurtenis
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.sites.models import Site
 from django.db.models import Case, F, Q, Value, When
@@ -128,6 +131,13 @@ class Melding(BasisModel):
         default=ResolutieOpties.NIET_OPGELOST,
     )
     bijlagen = GenericRelation(Bijlage)
+    bijlage = models.OneToOneField(
+        to="bijlagen.Bijlage",
+        related_name="melding_voor_bijlage",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
     onderwerpen = models.ManyToManyField(
         to="aliassen.OnderwerpAlias",
         related_name="meldingen_voor_onderwerpen",
@@ -299,6 +309,33 @@ class Melding(BasisModel):
             + melders_naam
             + melders_telefoonnummer
         )
+
+    def get_bijlagen(self, order_by="aangemaakt_op"):
+        bijlagen = Bijlage.objects.filter(
+            (
+                Q(object_id__in=self.signalen_voor_melding.values_list("id", flat=True))
+                & Q(content_type=ContentType.objects.get_for_model(Signaal))
+            )
+            | (
+                Q(
+                    object_id__in=self.meldinggebeurtenissen_voor_melding.values_list(
+                        "id", flat=True
+                    )
+                )
+                & Q(content_type=ContentType.objects.get_for_model(Meldinggebeurtenis))
+            )
+            | (
+                Q(
+                    object_id__in=[
+                        taakgebeurtenis.id
+                        for taakopdracht in self.taakopdrachten_voor_melding.all()
+                        for taakgebeurtenis in taakopdracht.taakgebeurtenissen_voor_taakopdracht.all()
+                    ]
+                )
+                & Q(content_type=ContentType.objects.get_for_model(Taakgebeurtenis))
+            )
+        ).order_by(order_by)
+        return bijlagen
 
     def actieve_taakopdrachten(self):
         from apps.taken.models import Taakstatus

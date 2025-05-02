@@ -1,3 +1,4 @@
+from apps.signalen.admin_filters import BijlagenAantalFilter
 from apps.signalen.models import Signaal
 from django.contrib import admin
 
@@ -9,6 +10,7 @@ class SignaalAdmin(admin.ModelAdmin):
         "id",
         "uuid",
         "signaal_url",
+        "bijlage_aantal",
         "aangemaakt_op",
         "bron_id",
         "bron_signaal_id",
@@ -26,6 +28,11 @@ class SignaalAdmin(admin.ModelAdmin):
         "Convert aanvullende informatie to aanvullende vragen"
     )
 
+    list_filter = (
+        BijlagenAantalFilter,
+        "bron_id",
+    )
+
     # Register the admin action
     actions = [convert_to_aanvullende_vragen]
     search_fields = [
@@ -37,6 +44,12 @@ class SignaalAdmin(admin.ModelAdmin):
         "melding",
         "melder",
     )
+
+    def bijlage_aantal(self, obj):
+        try:
+            return obj.bijlagen.count()
+        except Exception:
+            return "0"
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

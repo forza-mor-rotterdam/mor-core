@@ -1,6 +1,5 @@
 import logging
 
-from apps.locatie.models import Locatie
 from apps.meldingen.filtersets import MeldingFilter, RelatedOrderingFilter
 from apps.meldingen.models import Melding, Meldinggebeurtenis
 from apps.meldingen.serializers import (
@@ -19,7 +18,6 @@ from apps.taken.serializers import (
 )
 from config.context import db
 from django.conf import settings
-from django.db.models import Prefetch
 from django.http import Http404, JsonResponse
 from django_filters import rest_framework as filters
 from drf_spectacular.types import OpenApiTypes
@@ -122,14 +120,9 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         )
         .prefetch_related(
             "onderwerpen",
-            Prefetch(
-                "locaties_voor_melding",
-                queryset=Locatie.objects.exclude(locatie_type="lichtmast"),
-            ),
-            "signalen_voor_melding__bijlagen",
-            "bijlagen",
-            "meldinggebeurtenissen_voor_melding__bijlagen",
-            "meldinggebeurtenissen_voor_melding__taakgebeurtenis__bijlagen",
+            "bijlage",
+            "locatie",
+            "signalen_voor_melding",
             "taakopdrachten_voor_melding__status",
         )
         .all()
@@ -141,12 +134,15 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         filters.DjangoFilterBackend,
         RelatedOrderingFilter,
     )
-    # ordering_fields = "__all_related__"
     ordering_fields = [
         "id",
         "-id",
         "straatnaam",
         "-straatnaam",
+        "locatie__straatnaam",
+        "-locatie__straatnaam",
+        "locatie__buurtnaam",
+        "-locatie__buurtnaam",
         "locaties_voor_melding__buurtnaam",
         "-locaties_voor_melding__buurtnaam",
         "locaties_voor_melding__wijknaam",
