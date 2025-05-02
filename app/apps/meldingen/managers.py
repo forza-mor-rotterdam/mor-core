@@ -112,6 +112,8 @@ class MeldingManager(models.Manager):
                 status.save()
 
                 melding.status = status
+                if not melding.bijlage and signaal.bijlagen:
+                    melding.bijlage = signaal.bijlagen.first()
                 melding.save()
                 signaal.melding = melding
                 signaal.save()
@@ -312,7 +314,9 @@ class MeldingManager(models.Manager):
                 melding=locked_melding, locatie=locatie
             )
 
-            if meldinggebeurtenis.locatie:
+            if meldinggebeurtenis.locatie or (
+                not locked_melding.bijlage and meldinggebeurtenis.bijlagen
+            ):
                 try:
                     locked_melding = (
                         Melding.objects.using(db)
@@ -323,7 +327,10 @@ class MeldingManager(models.Manager):
                     raise MeldingManager.MeldingInGebruik(
                         f"De melding is op dit moment in gebruik, probeer het later nog eens. melding nummer: {melding.id}, melding uuid: {melding.uuid}"
                     )
-                locked_melding.locatie = meldinggebeurtenis.locatie
+                if not locked_melding.bijlage and meldinggebeurtenis.bijlagen:
+                    locked_melding.bijlage = meldinggebeurtenis.bijlagen.last()
+                if meldinggebeurtenis.locatie:
+                    locked_melding.locatie = meldinggebeurtenis.locatie
                 locked_melding.save()
 
             transaction.on_commit(
@@ -530,6 +537,10 @@ class MeldingManager(models.Manager):
             taakgebeurtenis = serializer.save(
                 taakopdracht=locked_taakopdracht,
             )
+            if not locked_melding.bijlage and taakgebeurtenis.bijlagen:
+                locked_melding.bijlage = taakgebeurtenis.bijlagen.last()
+                locked_melding.save()
+
             taakgebeurtenis.aangemaakt_op = taakgebeurtenis_aangemaakt_op
             taakgebeurtenis.save()
 

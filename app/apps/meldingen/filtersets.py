@@ -249,9 +249,8 @@ class MeldingFilter(BasisFilter):
     def get_buurt(self, queryset, name, value):
         if value:
             return queryset.filter(
-                locaties_voor_melding__buurtnaam__in=value,
-                locaties_voor_melding__primair=True,
-            ).distinct()
+                locatie__buurtnaam__in=value,
+            )
         return queryset
 
     def get_wijk(self, queryset, name, value):

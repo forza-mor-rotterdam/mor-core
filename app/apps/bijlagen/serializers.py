@@ -34,6 +34,7 @@ class BijlageSerializer(serializers.ModelSerializer):
             "uuid",
             "bestand",
             "bestand_hash",
+            "aangemaakt_op",
             "afbeelding",
             "afbeelding_verkleind",
             "mimetype",
@@ -44,6 +45,7 @@ class BijlageSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "uuid",
             "bestand_hash",
+            "aangemaakt_op",
             "afbeelding",
             "afbeelding_verkleind",
             "is_afbeelding",

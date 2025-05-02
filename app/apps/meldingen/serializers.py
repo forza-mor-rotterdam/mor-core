@@ -245,11 +245,8 @@ class MeldingSerializer(serializers.ModelSerializer):
     taakopdrachten_voor_melding = TaakopdrachtMeldingLijstSerializer(
         many=True, read_only=True
     )
-    locaties_voor_melding = LocatieRelatedField(many=True, read_only=True)
-    bijlagen = BijlageAlleenLezenSerializer(many=True, read_only=True)
-    meldinggebeurtenissen = MeldinggebeurtenisMeldingLijstSerializer(
-        source="meldinggebeurtenissen_voor_melding", many=True, read_only=True
-    )
+    locatie = LocatieRelatedField(read_only=True)
+    bijlage = BijlageAlleenLezenSerializer(read_only=True)
 
     class Meta:
         model = Melding
@@ -262,15 +259,14 @@ class MeldingSerializer(serializers.ModelSerializer):
             "origineel_aangemaakt",
             "afgesloten_op",
             "urgentie",
-            "bijlagen",
+            "bijlage",
             "meta",
             "onderwerpen",
-            "locaties_voor_melding",
+            "locatie",
             "signalen_voor_melding",
             "status",
             "resolutie",
             "taakopdrachten_voor_melding",
-            "meldinggebeurtenissen",
         )
         read_only_fields = (
             "id",
@@ -278,29 +274,14 @@ class MeldingSerializer(serializers.ModelSerializer):
             "aangemaakt_op",
             "aangepast_op",
             "urgentie",
+            "bijlage",
             "origineel_aangemaakt",
             "omschrijving_kort",
             "afgesloten_op",
             "meta",
             "meta_uitgebreid",
             "resolutie",
-            "meldinggebeurtenissen",
         )
-
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-
-        # Sorteer locaties_voor_melding op 'gewicht' veld
-        locaties_sorted = sorted(
-            representation["locaties_voor_melding"],
-            key=lambda locatie: locatie.get("gewicht", 0),
-            reverse=True,
-        )
-
-        # Vervang originele locaties_voor_melding met de gesorteerde lijst
-        representation["locaties_voor_melding"] = locaties_sorted
-
-        return representation
 
 
 class MeldingDetailSerializer(MeldingSerializer):
@@ -358,6 +339,21 @@ class MeldingDetailSerializer(MeldingSerializer):
             "taakopdrachten_voor_melding",
             "signalen_voor_melding",
         )
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+
+        # Sorteer locaties_voor_melding op 'gewicht' veld
+        locaties_sorted = sorted(
+            representation["locaties_voor_melding"],
+            key=lambda locatie: locatie.get("gewicht", 0),
+            reverse=True,
+        )
+
+        # Vervang originele locaties_voor_melding met de gesorteerde lijst
+        representation["locaties_voor_melding"] = locaties_sorted
+
+        return representation
 
 
 class MeldingAantallenSerializer(serializers.Serializer):

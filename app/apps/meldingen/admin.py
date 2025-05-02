@@ -2,6 +2,7 @@ import logging
 
 from apps.meldingen.admin_filters import (
     AfgeslotenOpFilter,
+    BijlagenAantalFilter,
     OnderwerpenFilter,
     ResolutieFilter,
     StatusFilter,
@@ -46,6 +47,8 @@ def action_melding_bijlages_opruimen(modeladmin, request, queryset):
 class MeldingAdmin(admin.ModelAdmin):
     list_display = (
         "id",
+        "bijlage_aantal",
+        "bijlage",
         "uuid",
         "urgentie",
         "status_naam",
@@ -58,6 +61,7 @@ class MeldingAdmin(admin.ModelAdmin):
         "zoek_tekst",
     )
     list_filter = (
+        BijlagenAantalFilter,
         StatusFilter,
         ResolutieFilter,
         AfgeslotenOpFilter,
@@ -115,6 +119,12 @@ class MeldingAdmin(admin.ModelAdmin):
         action_melding_met_alle_relaties_verwijderen,
         action_melding_bijlages_opruimen,
     )
+
+    def bijlage_aantal(self, obj):
+        try:
+            return obj.bijlagen.count()
+        except Exception:
+            return "0"
 
     def status_naam(self, obj):
         try:
