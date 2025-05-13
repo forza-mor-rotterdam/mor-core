@@ -122,7 +122,11 @@ def task_taak_aanmaken(self, taakgebeurtenis_id, check_taak_url=True):
                 f'De taak kon niet worden aangemaakt in {taakopdracht.applicatie.naam} o.b.v. taakopdracht met id {taakopdracht.id}, bericht: {error.get("bericht")} status code: {error.get("status_code")}'
             )
 
-        taakopdracht.taak_url = taak_aanmaken_response.get("_links", {}).get("self")
+        taak_url = taak_aanmaken_response.get("_links", {}).get("self")
+        logger.info(
+            f'taakaaplicatie response _links: {taak_aanmaken_response.get("_links", {})}'
+        )
+        taakopdracht.taak_url = taak_url
         taakopdracht.save()
         additionele_informatie = {}
         additionele_informatie.update(taakgebeurtenis.additionele_informatie)
@@ -135,7 +139,7 @@ def task_taak_aanmaken(self, taakgebeurtenis_id, check_taak_url=True):
             )
             taakgebeurtenis.save()
 
-    return f"De taak is aangemaakt in {taakopdracht.applicatie.naam}, o.b.v. taakopdracht met id: {taakopdracht.id} en FixeR taak met id: {taak_aanmaken_response.get('id')}."
+    return f"De taak is aangemaakt in {taakopdracht.applicatie.naam}, o.b.v. taakopdracht met id: {taakopdracht.id}, de taakapplicatie taak url is: {taakopdracht.taak_url}."
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)

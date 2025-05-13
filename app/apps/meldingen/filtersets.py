@@ -249,23 +249,22 @@ class MeldingFilter(BasisFilter):
     def get_buurt(self, queryset, name, value):
         if value:
             return queryset.filter(
-                locatie__buurtnaam__in=value,
+                referentie_locatie__buurtnaam__in=value,
             )
         return queryset
 
     def get_wijk(self, queryset, name, value):
         if value:
             return queryset.filter(
-                locaties_voor_melding__wijknaam__in=value,
-                locaties_voor_melding__primair=True,
-            ).distinct()
+                referentie_locatie__wijknaam__in=value,
+            )
         return queryset
 
     def get_begraafplaatsen(self, queryset, name, value):
         if value:
             return queryset.filter(
-                locaties_voor_melding__begraafplaats__in=value,
-            ).distinct()
+                referentie_locatie__begraafplaats__in=value,
+            )
         return queryset
 
     def get_statussen(self, queryset, name, value):

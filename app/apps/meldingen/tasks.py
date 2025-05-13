@@ -217,17 +217,17 @@ def task_set_melding_locatie(self):
     ).order_by("-gewicht")
 
     meldingen = Melding.objects.filter(
-        locatie__isnull=True,
+        referentie_locatie__isnull=True,
     ).annotate(
         primair_locatie_id=Subquery(locaties.values("id")[:1]),
     )
 
     update_list = []
     for melding in meldingen:
-        melding.locatie_id = melding.primair_locatie_id
+        melding.referentie_locatie_id = melding.primair_locatie_id
         update_list.append(melding)
 
-    Melding.objects.bulk_update(update_list, ["locatie"])
+    Melding.objects.bulk_update(update_list, ["referentie_locatie"])
 
     return f"Aantal geupdate locaties {len(meldingen)}"
 
@@ -254,7 +254,7 @@ def task_set_melding_bijlage(self, melding_id):
 
     melding_bijlage = melding.get_bijlagen().first()
     if melding_bijlage:
-        melding.bijlage = melding_bijlage
-        melding.save(update_fields=["bijlage"])
+        melding.thumbnail_afbeelding = melding_bijlage
+        melding.save(update_fields=["thumbnail_afbeelding"])
 
     return f"Bijlage {melding_bijlage}, voor melding_id={melding_id}"

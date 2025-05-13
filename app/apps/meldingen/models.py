@@ -131,7 +131,7 @@ class Melding(BasisModel):
         default=ResolutieOpties.NIET_OPGELOST,
     )
     bijlagen = GenericRelation(Bijlage)
-    bijlage = models.OneToOneField(
+    thumbnail_afbeelding = models.OneToOneField(
         to="bijlagen.Bijlage",
         related_name="melding_voor_bijlage",
         on_delete=models.SET_NULL,
@@ -147,7 +147,7 @@ class Melding(BasisModel):
         blank=True,
         null=True,
     )
-    locatie = models.OneToOneField(
+    referentie_locatie = models.OneToOneField(
         to="locatie.Locatie",
         related_name="melding_voor_locatie",
         on_delete=models.SET_NULL,
@@ -341,16 +341,24 @@ class Melding(BasisModel):
         ).order_by(order_by)
         return bijlagen
 
+    @property
     def actieve_taakopdrachten(self):
         from apps.taken.models import Taakstatus
 
-        return self.taakopdrachten_voor_melding.exclude(
-            status__naam__in=[
-                Taakstatus.NaamOpties.VOLTOOID,
-                Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
-            ],
-            verwijderd_op__isnull=False,
+        taakopdrachten_voor_melding = self.taakopdrachten_voor_melding.all()
+
+        taakopdrachten_voor_melding_zonder_valide_taken = (
+            taakopdrachten_voor_melding.exclude(
+                Q(
+                    status__naam__in=[
+                        Taakstatus.NaamOpties.VOLTOOID,
+                        Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
+                    ]
+                )
+                | Q(verwijderd_op__isnull=False),
+            )
         )
+        return taakopdrachten_voor_melding_zonder_valide_taken
 
     def get_absolute_url(self):
         domain = Site.objects.get_current().domain
