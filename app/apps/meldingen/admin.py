@@ -48,12 +48,12 @@ class MeldingAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "bijlage_aantal",
-        "bijlage",
+        "thumbnail_afbeelding",
         "uuid",
         "urgentie",
         "status_naam",
         "onderwerp_naam",
-        "locatie",
+        "referentie_locatie",
         "origineel_aangemaakt",
         "aangemaakt_op",
         "aangepast_op",
@@ -78,7 +78,7 @@ class MeldingAdmin(admin.ModelAdmin):
         "afgesloten_op",
         "origineel_aangemaakt",
     )
-    raw_id_fields = ("status", "locatie")
+    raw_id_fields = ("status", "referentie_locatie", "thumbnail_afbeelding")
     fieldsets = (
         (
             None,

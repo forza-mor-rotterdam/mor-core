@@ -120,8 +120,8 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         )
         .prefetch_related(
             "onderwerpen",
-            "bijlage",
-            "locatie",
+            "thumbnail_afbeelding",
+            "referentie_locatie",
             "signalen_voor_melding",
             "taakopdrachten_voor_melding__status",
         )
@@ -139,10 +139,10 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         "-id",
         "straatnaam",
         "-straatnaam",
-        "locatie__straatnaam",
-        "-locatie__straatnaam",
-        "locatie__buurtnaam",
-        "-locatie__buurtnaam",
+        "referentie_locatie__straatnaam",
+        "-referentie_locatie__straatnaam",
+        "referentie_locatie__buurtnaam",
+        "-referentie_locatie__buurtnaam",
         "locaties_voor_melding__buurtnaam",
         "-locaties_voor_melding__buurtnaam",
         "locaties_voor_melding__wijknaam",

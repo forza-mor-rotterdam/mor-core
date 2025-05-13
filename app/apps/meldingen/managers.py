@@ -102,7 +102,7 @@ class MeldingManager(models.Manager):
                     geometrie__isnull=False
                 ).first()
                 if first_locatie:
-                    melding.locatie = first_locatie
+                    melding.referentie_locatie = first_locatie
                     first_locatie.primair = True
                     first_locatie.gewicht = 0.25
                     first_locatie.save()
@@ -112,8 +112,8 @@ class MeldingManager(models.Manager):
                 status.save()
 
                 melding.status = status
-                if not melding.bijlage and signaal.bijlagen:
-                    melding.bijlage = signaal.bijlagen.first()
+                if not melding.thumbnail_afbeelding and signaal.bijlagen:
+                    melding.thumbnail_afbeelding = signaal.bijlagen.first()
                 melding.save()
                 signaal.melding = melding
                 signaal.save()
@@ -228,6 +228,7 @@ class MeldingManager(models.Manager):
                         .select_for_update(nowait=True)
                         .filter(
                             afgesloten_op__isnull=True,
+                            verwijderd_op__isnull=True,
                         )
                     )
                 except OperationalError:
@@ -315,7 +316,7 @@ class MeldingManager(models.Manager):
             )
 
             if meldinggebeurtenis.locatie or (
-                not locked_melding.bijlage and meldinggebeurtenis.bijlagen
+                not locked_melding.thumbnail_afbeelding and meldinggebeurtenis.bijlagen
             ):
                 try:
                     locked_melding = (
@@ -327,10 +328,15 @@ class MeldingManager(models.Manager):
                     raise MeldingManager.MeldingInGebruik(
                         f"De melding is op dit moment in gebruik, probeer het later nog eens. melding nummer: {melding.id}, melding uuid: {melding.uuid}"
                     )
-                if not locked_melding.bijlage and meldinggebeurtenis.bijlagen:
-                    locked_melding.bijlage = meldinggebeurtenis.bijlagen.last()
+                if (
+                    not locked_melding.thumbnail_afbeelding
+                    and meldinggebeurtenis.bijlagen
+                ):
+                    locked_melding.thumbnail_afbeelding = (
+                        meldinggebeurtenis.bijlagen.last()
+                    )
                 if meldinggebeurtenis.locatie:
-                    locked_melding.locatie = meldinggebeurtenis.locatie
+                    locked_melding.referentie_locatie = meldinggebeurtenis.locatie
                 locked_melding.save()
 
             transaction.on_commit(
@@ -537,8 +543,8 @@ class MeldingManager(models.Manager):
             taakgebeurtenis = serializer.save(
                 taakopdracht=locked_taakopdracht,
             )
-            if not locked_melding.bijlage and taakgebeurtenis.bijlagen:
-                locked_melding.bijlage = taakgebeurtenis.bijlagen.last()
+            if not locked_melding.thumbnail_afbeelding and taakgebeurtenis.bijlagen:
+                locked_melding.thumbnail_afbeelding = taakgebeurtenis.bijlagen.last()
                 locked_melding.save()
 
             taakgebeurtenis.aangemaakt_op = taakgebeurtenis_aangemaakt_op

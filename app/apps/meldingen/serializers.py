@@ -245,8 +245,8 @@ class MeldingSerializer(serializers.ModelSerializer):
     taakopdrachten_voor_melding = TaakopdrachtMeldingLijstSerializer(
         many=True, read_only=True
     )
-    locatie = LocatieRelatedField(read_only=True)
-    bijlage = BijlageAlleenLezenSerializer(read_only=True)
+    referentie_locatie = LocatieRelatedField(read_only=True)
+    thumbnail_afbeelding = BijlageAlleenLezenSerializer(read_only=True)
 
     class Meta:
         model = Melding
@@ -259,10 +259,10 @@ class MeldingSerializer(serializers.ModelSerializer):
             "origineel_aangemaakt",
             "afgesloten_op",
             "urgentie",
-            "bijlage",
+            "thumbnail_afbeelding",
             "meta",
             "onderwerpen",
-            "locatie",
+            "referentie_locatie",
             "signalen_voor_melding",
             "status",
             "resolutie",
@@ -274,7 +274,7 @@ class MeldingSerializer(serializers.ModelSerializer):
             "aangemaakt_op",
             "aangepast_op",
             "urgentie",
-            "bijlage",
+            "thumbnail_afbeelding",
             "origineel_aangemaakt",
             "omschrijving_kort",
             "afgesloten_op",
