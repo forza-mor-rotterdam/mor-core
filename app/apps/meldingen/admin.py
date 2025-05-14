@@ -4,13 +4,18 @@ from apps.meldingen.admin_filters import (
     AfgeslotenOpFilter,
     BijlagenAantalFilter,
     OnderwerpenFilter,
+    ReferentieLocatieFilter,
     ResolutieFilter,
     StatusFilter,
+    ThumbnailAfbeeldingFilter,
+    ZoekTekstFilter,
 )
 from apps.meldingen.models import Melding, Meldinggebeurtenis
 from apps.meldingen.tasks import (
     task_bijlages_voor_geselecteerde_meldingen_opruimen,
     task_notificatie_voor_signaal_melding_afgesloten,
+    task_set_melding_thumbnail_afbeelding_voor_melding_reeks,
+    task_vernieuw_melding_zoek_tekst_voor_melding_reeks,
 )
 from apps.status.models import Status
 from django.conf import settings
@@ -44,6 +49,24 @@ def action_melding_bijlages_opruimen(modeladmin, request, queryset):
     )
 
 
+@admin.action(description="Set melding.thumbnail_afbeelding voor meldingen")
+def action_set_melding_thumbnail_afbeelding_voor_melding_reeks(
+    modeladmin, request, queryset
+):
+    task_set_melding_thumbnail_afbeelding_voor_melding_reeks.delay(
+        melding_ids=list(queryset.values_list("id", flat=True))
+    )
+
+
+@admin.action(description="Vernieuw melding.zoek_tekst voor meldingen")
+def action_vernieuw_melding_zoek_tekst_voor_melding_reeks(
+    modeladmin, request, queryset
+):
+    task_vernieuw_melding_zoek_tekst_voor_melding_reeks.delay(
+        melding_ids=list(queryset.values_list("id", flat=True))
+    )
+
+
 class MeldingAdmin(admin.ModelAdmin):
     list_display = (
         "id",
@@ -61,6 +84,9 @@ class MeldingAdmin(admin.ModelAdmin):
         "zoek_tekst",
     )
     list_filter = (
+        ThumbnailAfbeeldingFilter,
+        ReferentieLocatieFilter,
+        ZoekTekstFilter,
         BijlagenAantalFilter,
         StatusFilter,
         ResolutieFilter,
@@ -118,6 +144,8 @@ class MeldingAdmin(admin.ModelAdmin):
         action_notificatie_voor_signaal_melding_afgesloten,
         action_melding_met_alle_relaties_verwijderen,
         action_melding_bijlages_opruimen,
+        action_set_melding_thumbnail_afbeelding_voor_melding_reeks,
+        action_vernieuw_melding_zoek_tekst_voor_melding_reeks,
     )
 
     def bijlage_aantal(self, obj):
@@ -135,10 +163,24 @@ class MeldingAdmin(admin.ModelAdmin):
     def onderwerp_naam(self, obj):
         try:
             return ", ".join(
-                list(obj.onderwerpen.values_list("response_json__name", flat=True))
+                [
+                    onderwerp.response_json.get("name")
+                    for onderwerp in obj.onderwerpen.all()
+                ]
             )
         except Exception:
             return "- leeg -"
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            "status",
+        ).prefetch_related(
+            "thumbnail_afbeelding",
+            "onderwerpen",
+            "referentie_locatie",
+            "bijlagen",
+        )
 
 
 class MeldinggebeurtenisAdmin(admin.ModelAdmin):

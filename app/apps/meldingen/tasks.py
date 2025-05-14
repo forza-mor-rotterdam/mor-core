@@ -179,16 +179,18 @@ def task_bijlages_voor_melding_opruimen(self, melding_id):
 
 @shared_task(bind=True)
 def task_vernieuw_melding_zoek_tekst_voor_melding_reeks(
-    self, start_index=None, eind_index=None, order_by="id"
+    self, start_index=None, eind_index=None, order_by="id", melding_ids=[]
 ):
     from apps.meldingen.models import Melding
 
-    for melding_id in list(
-        Melding.objects.all().order_by(order_by).values_list("id", flat=True)
-    )[start_index:eind_index]:
+    if not melding_ids:
+        melding_ids = list(
+            Melding.objects.all().order_by(order_by).values_list("id", flat=True)
+        )[start_index:eind_index]
+    for melding_id in melding_ids:
         task_vernieuw_melding_zoek_tekst.delay(melding_id)
 
-    return f"Melding zoek tekst vernieuwen voor, start_index={start_index}, eind_index={eind_index}"
+    return f"Melding zoek tekst vernieuwen voor, start_index={start_index}, eind_index={eind_index}, melding_ids={len(melding_ids)}"
 
 
 @shared_task(bind=True)
@@ -207,7 +209,7 @@ def task_vernieuw_melding_zoek_tekst(self, melding_id):
 
 
 @shared_task(bind=True)
-def task_set_melding_locatie(self):
+def task_set_melding_referentie_locatie(self):
     from apps.locatie.models import Locatie
     from apps.meldingen.models import Melding
 
@@ -233,21 +235,23 @@ def task_set_melding_locatie(self):
 
 
 @shared_task(bind=True)
-def task_set_melding_bijlage_voor_melding_reeks(
-    self, start_index=None, eind_index=None, order_by="id"
+def task_set_melding_thumbnail_afbeelding_voor_melding_reeks(
+    self, start_index=None, eind_index=None, order_by="id", melding_ids=[]
 ):
     from apps.meldingen.models import Melding
 
-    for melding_id in list(
-        Melding.objects.all().order_by(order_by).values_list("id", flat=True)
-    )[start_index:eind_index]:
-        task_set_melding_bijlage.delay(melding_id)
+    if not melding_ids:
+        melding_ids = list(
+            Melding.objects.all().order_by(order_by).values_list("id", flat=True)
+        )[start_index:eind_index]
+    for melding_id in melding_ids:
+        task_set_melding_thumbnail_afbeelding.delay(melding_id)
 
-    return f"Set bijlagen voor melding indexes, start_index={start_index}, eind_index={eind_index}"
+    return f"Set thumbnail_afbeelding voor melding indexes, start_index={start_index}, eind_index={eind_index}, melding_ids={len(melding_ids)}"
 
 
 @shared_task(bind=True)
-def task_set_melding_bijlage(self, melding_id):
+def task_set_melding_thumbnail_afbeelding(self, melding_id):
     from apps.meldingen.models import Melding
 
     melding = Melding.objects.get(id=melding_id)
