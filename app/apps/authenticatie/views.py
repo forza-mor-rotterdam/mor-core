@@ -1,5 +1,7 @@
 import logging
+import urllib.parse
 
+import nh3
 from apps.authenticatie.serializers import GebruikerSerializer
 from django.conf import settings
 from django.core.cache import cache
@@ -24,9 +26,11 @@ class LoginView(View):
             return redirect(reverse("root"), False)
 
         if settings.OIDC_ENABLED:
-            return redirect(f"/oidc/authenticate/?next={request.GET.get('next', '/')}")
+            next_path = urllib.parse.urlparse(request.GET.get("next", "/")).path
+            return redirect(f"/oidc/authenticate/?next={nh3.clean(next_path)}")
         if settings.ENABLE_DJANGO_ADMIN_LOGIN:
-            return redirect(f"/admin/login/?next={request.GET.get('next', '/admin')}")
+            next_path = urllib.parse.urlparse(request.GET.get("next", "/admin")).path
+            return redirect(f"/admin/login/?next={nh3.clean(next_path)}")
 
         return HttpResponse("Er is geen login ingesteld")
 
@@ -39,7 +43,8 @@ class LogoutView(View):
         if settings.OIDC_ENABLED:
             return redirect("/oidc/logout/")
         if settings.ENABLE_DJANGO_ADMIN_LOGIN:
-            return redirect(f"/admin/logout/?next={request.GET.get('next', '/')}")
+            next_path = urllib.parse.urlparse(request.GET.get("next", "/")).path
+            return redirect(f"/admin/logout/?next={nh3.clean(next_path)}")
 
         return HttpResponse("Er is geen logout ingesteld")
 
