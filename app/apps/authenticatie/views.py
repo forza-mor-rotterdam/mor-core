@@ -1,14 +1,47 @@
 import logging
 
 from apps.authenticatie.serializers import GebruikerSerializer
+from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+from django.http import HttpResponse
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.views.generic import View
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 logger = logging.getLogger(__name__)
+
+
+class LoginView(View):
+    def get(self, request, *args, **kwargs):
+        if request.user.is_staff or request.user.is_superuser:
+            return redirect("/admin/")
+        if request.user.is_authenticated:
+            return redirect(reverse("root"), False)
+
+        if settings.OIDC_ENABLED:
+            return redirect(f"/oidc/authenticate/?next={request.GET.get('next', '/')}")
+        if settings.ENABLE_DJANGO_ADMIN_LOGIN:
+            return redirect(f"/admin/login/?next={request.GET.get('next', '/admin')}")
+
+        return HttpResponse("Er is geen login ingesteld")
+
+
+class LogoutView(View):
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect(reverse("login"), False)
+
+        if settings.OIDC_ENABLED:
+            return redirect("/oidc/logout/")
+        if settings.ENABLE_DJANGO_ADMIN_LOGIN:
+            return redirect(f"/admin/logout/?next={request.GET.get('next', '/')}")
+
+        return HttpResponse("Er is geen logout ingesteld")
 
 
 class GetGebruikerAPIView(APIView):
