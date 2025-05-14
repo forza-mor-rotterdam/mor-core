@@ -83,17 +83,12 @@ class Locatie(BasisModel):
     gewicht = models.FloatField(default=0.2)
     primair = models.BooleanField(default=False)
 
-    def save(self, *args, **kwargs):
-        self.update_locatie_zoek_field()
-        super().save(*args, **kwargs)
-
-    def update_locatie_zoek_field(self):
+    def get_zoek_tekst(self):
         if self.locatie_type == "adres":
-            self.locatie_zoek_field = f"{self.straatnaam or ''} {self.huisnummer or ''}{self.huisletter or ''}{'-' + self.toevoeging if self.toevoeging else ''}".strip()
-        elif self.locatie_type == "lichtmast":
-            self.locatie_zoek_field = f"{self.straatnaam or ''} {self.huisnummer or ''}{self.huisletter or ''}{'-' + self.toevoeging if self.toevoeging else ''} {self.lichtmast_id or ''}".strip()
+            return f"{self.straatnaam or ''} {self.huisnummer or ''}{self.huisletter or ''}{'-' + self.toevoeging if self.toevoeging else ''}".strip()
         elif self.locatie_type == "graf":
-            self.locatie_zoek_field = f"{self.begraafplaats or ''} {self.grafnummer or ''} {self.vak or ''}".strip()
+            return f"{self.grafnummer or ''} {self.vak or ''}".strip()
+        return ""
 
     def bereken_gewicht(self):
         return self.gewicht
