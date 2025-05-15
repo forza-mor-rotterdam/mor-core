@@ -5,6 +5,7 @@ from django.db.models import (
     Avg,
     Count,
     ExpressionWrapper,
+    F,
     FloatField,
     Min,
     OuterRef,
@@ -21,21 +22,13 @@ logger = logging.getLogger(__name__)
 class TaakopdrachtQuerySet(QuerySet):
     def taaktype_aantallen_per_melding(self, querystring):
         from apps.aliassen.models import OnderwerpAlias
-        from apps.locatie.models import Locatie
 
         inclusief_melding = querystring.get("inclusief-melding", False)
 
-        locaties = Locatie.objects.filter(melding=OuterRef("melding")).order_by(
-            "-gewicht"
-        )
         onderwerpen = OnderwerpAlias.objects.filter(
             meldingen_voor_onderwerpen=OuterRef("melding")
         )
         taakopdrachten = self.all()
-
-        logger.info(
-            f"aantal meldingen: {taakopdrachten.values('melding').order_by().distinct().count()}"
-        )
 
         taakopdrachten = taakopdrachten.annotate(
             onderwerp=Coalesce(
@@ -44,11 +37,10 @@ class TaakopdrachtQuerySet(QuerySet):
             )
         ).annotate(
             wijk=Coalesce(
-                Subquery(locaties.values("wijknaam")[:1]),
+                F("melding__referentie_locatie__wijknaam"),
                 Value("Onbekend"),
             )
         )
-        logger.info(f"taakopdrachten count: {taakopdrachten.count()}")
 
         taakopdrachten = (
             taakopdrachten.annotate(
@@ -89,8 +81,6 @@ class TaakopdrachtQuerySet(QuerySet):
             .order_by()
         )
 
-        logger.info(f"taakopdrachten count: {taakopdrachten.count()}")
-
         taakopdrachten = list(
             {
                 taakopdracht.get("onderwerp_wijk_taaktype_aantal"): {
@@ -119,23 +109,16 @@ class TaakopdrachtQuerySet(QuerySet):
                 for taakopdracht in taakopdrachten
             }.values()
         )
-
-        logger.info(f"taakopdrachten len: {len(taakopdrachten)}")
         return taakopdrachten
 
     def taakopdracht_doorlooptijden(self):
         from apps.aliassen.models import OnderwerpAlias
-        from apps.locatie.models import Locatie
         from apps.taken.models import Taakgebeurtenis
 
-        locaties = Locatie.objects.filter(melding=OuterRef("melding")).order_by(
-            "-gewicht"
-        )
         onderwerpen = OnderwerpAlias.objects.filter(
             meldingen_voor_onderwerpen=OuterRef("melding")
         )
         taakopdrachten = self.all()
-        logger.info(f"init taakopdrachten count: {taakopdrachten.count()}")
 
         # als het maar wel afgesloten Taakgebeurtenis instancies zijn
         taakopdrachten = taakopdrachten.filter(afgesloten_op__isnull=False)
@@ -184,7 +167,7 @@ class TaakopdrachtQuerySet(QuerySet):
             )
         ).annotate(
             wijk=Coalesce(
-                Subquery(locaties.values("wijknaam")[:1]),
+                F("melding__referentie_locatie__wijknaam"),
                 Value("Onbekend"),
             )
         )
@@ -209,8 +192,6 @@ class TaakopdrachtQuerySet(QuerySet):
             .values("onderwerp_wijk_taaktype", "taaktype", "titel", "wijk", "onderwerp")
             .order_by()
         )
-
-        logger.info(f"taakopdrachten count: {taakopdrachten.count()}")
         taakopdrachten = taakopdrachten.annotate(
             taakopdracht_aantal=Count("onderwerp_wijk_taaktype"),
             duur_gemiddeld=Avg("duur"),
@@ -224,20 +205,12 @@ class TaakopdrachtQuerySet(QuerySet):
             "taakopdracht_aantal",
             "duur_gemiddeld",
         )
-
-        logger.info(f"taakopdrachten count: {taakopdrachten.count()}")
         return taakopdrachten
 
     def nieuwe_taakopdrachten(self):
         from apps.aliassen.models import OnderwerpAlias
-        from apps.locatie.models import Locatie
 
         taakopdrachten = self
-        logger.info(f"init taakopdrachten count: {taakopdrachten.count()}")
-
-        locaties = Locatie.objects.filter(melding=OuterRef("melding")).order_by(
-            "-gewicht"
-        )
         onderwerpen = OnderwerpAlias.objects.filter(
             meldingen_voor_onderwerpen=OuterRef("melding")
         )
@@ -250,7 +223,7 @@ class TaakopdrachtQuerySet(QuerySet):
             )
         ).annotate(
             wijk=Coalesce(
-                Subquery(locaties.values("wijknaam")[:1]),
+                F("melding__referentie_locatie__wijknaam"),
                 Value("Onbekend"),
             )
         )
@@ -276,7 +249,6 @@ class TaakopdrachtQuerySet(QuerySet):
             .order_by()
         )
 
-        logger.info(f"taakopdrachten count: {taakopdrachten.count()}")
         taakopdrachten = taakopdrachten.annotate(
             taakopdracht_aantal=Count("onderwerp_wijk_taaktype"),
         )
@@ -288,6 +260,4 @@ class TaakopdrachtQuerySet(QuerySet):
             "onderwerp",
             "taakopdracht_aantal",
         )
-
-        logger.info(f"taakopdrachten count: {taakopdrachten.count()}")
         return taakopdrachten
