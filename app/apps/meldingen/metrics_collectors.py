@@ -132,12 +132,11 @@ class CustomCollector(object):
         wijken_gps_lookup = {
             wijk.get("wijknaam"): wijk.get("centroide_ll") for wijk in wijken
         }
-        locaties = Locatie.objects.filter(melding=OuterRef("pk")).order_by("-gewicht")
         signalen = (
             Signaal.objects.filter(onderwerpen__response_json__name__isnull=False)
             .annotate(
                 wijknaam=Coalesce(
-                    Subquery(locaties.values("wijknaam")[:1]),
+                    F("melding__referentie_locatie__wijknaam"),
                     Value("Onbekend"),
                 )
             )
@@ -253,13 +252,11 @@ class CustomCollector(object):
                 "status",
             ],
         )
-
-        locaties = Locatie.objects.filter(melding=OuterRef("pk")).order_by("-gewicht")
         meldingen = (
             Melding.objects.filter(onderwerpen__response_json__name__isnull=False)
             .annotate(
                 wijknaam=Coalesce(
-                    Subquery(locaties.values("wijknaam")[:1]),
+                    F("referentie_locatie__wijknaam"),
                     Value("Onbekend"),
                 )
             )
@@ -301,7 +298,8 @@ class CustomCollector(object):
         )
         total_taken = []
 
-        sql = 'SELECT "taken_taakopdracht"."titel", "taken_taakstatus"."naam", COALESCE("locatie_locatie".wijknaam, \'Onbekend\') AS wijk, COUNT("taken_taakopdracht"."titel") AS "count" FROM "taken_taakopdracht" JOIN "taken_taakstatus" ON ("taken_taakopdracht"."status_id" = "taken_taakstatus"."id") JOIN "locatie_locatie" ON "locatie_locatie".melding_id = "taken_taakopdracht".melding_id AND "locatie_locatie".primair = true GROUP BY "taken_taakopdracht"."titel", "taken_taakstatus"."naam", 3 ORDER BY "taken_taakopdracht"."titel" ASC;'
+        # sql = 'SELECT "taken_taakopdracht"."titel", "taken_taakstatus"."naam", COALESCE("locatie_locatie".wijknaam, \'Onbekend\') AS wijk, COUNT("taken_taakopdracht"."titel") AS "count" FROM "taken_taakopdracht" JOIN "taken_taakstatus" ON ("taken_taakopdracht"."status_id" = "taken_taakstatus"."id") JOIN "locatie_locatie" ON "locatie_locatie".melding_id = "taken_taakopdracht".melding_id AND "locatie_locatie".primair = true GROUP BY "taken_taakopdracht"."titel", "taken_taakstatus"."naam", 3 ORDER BY "taken_taakopdracht"."titel" ASC;'
+        sql = 'SELECT "taken_taakopdracht"."titel", "taken_taakstatus"."naam", COALESCE("locatie_locatie".wijknaam, \'Onbekend\') AS wijk, COUNT("taken_taakopdracht"."titel") AS "count" FROM "taken_taakopdracht" JOIN "taken_taakstatus" ON ("taken_taakopdracht"."status_id" = "taken_taakstatus"."id") JOIN "locatie_locatie" ON "locatie_locatie".melding_id = "taken_taakopdracht".melding_id JOIN "meldingen_melding" ON "meldingen_melding".referentie_locatie_id = "locatie_locatie".id GROUP BY "taken_taakopdracht"."titel", "taken_taakstatus"."naam", 3 ORDER BY "taken_taakopdracht"."titel" ASC;'
 
         with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
             cursor.execute(sql)

@@ -10,16 +10,13 @@ from apps.locatie.serializers import (
 )
 from apps.melders.serializers import MelderSerializer
 from apps.meldingen.models import Melding, Meldinggebeurtenis
-from apps.services.pdok import PDOKService
 from apps.signalen.models import Signaal
 from apps.status.models import Status
-from django.conf import settings
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from shapely.wkt import loads
 from utils.exceptions import UrlFout
 
 
@@ -144,27 +141,8 @@ class SignaalListSerializer(WritableNestedModelSerializer):
 
 
 class SignaalAantallenSerializer(serializers.Serializer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.wijken_gps_lookup = self.fetch_wijken_gps_lookup()
-
-    def fetch_wijken_gps_lookup(self):
-        gemeentecode = settings.WIJKEN_EN_BUURTEN_GEMEENTECODE
-        wijken = PDOKService().get_wijken_middels_gemeentecode(gemeentecode)
-        return {wijk.get("wijknaam"): wijk.get("centroide_ll") for wijk in wijken}
-
     def to_representation(self, instance):
-        wijk = instance.get("wijk")
-        gps = self.wijken_gps_lookup.get(wijk)
-        gps = loads(gps)
-        lat = str(gps.coords[0][1]) if gps else ""
-        lon = str(gps.coords[0][0]) if gps else ""
-
-        return {
-            **instance,
-            "lat": lat,
-            "lon": lon,
-        }
+        return instance
 
 
 class SignaalSerializer(WritableNestedModelSerializer):

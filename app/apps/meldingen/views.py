@@ -29,6 +29,8 @@ def prometheus_django_metrics(request):
     registry = prometheus_client.CollectorRegistry()
     registry.register(CustomCollector())
     metrics_page = prometheus_client.generate_latest(registry)
+    # from django.shortcuts import redirect, render
+    # return render(request, "base.html", {"content": metrics_page})
     return HttpResponse(
         metrics_page, content_type=prometheus_client.CONTENT_TYPE_LATEST
     )

@@ -135,7 +135,9 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
     )
     search_fields = [
         "id",
+        "uuid",
         "melding__id",
+        "melding__uuid",
     ]
     raw_id_fields = [
         "melding",
