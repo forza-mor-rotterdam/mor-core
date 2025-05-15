@@ -10,7 +10,9 @@ class DefaultBase64File(Base64FileField):
     def get_file_extension(self, filename, decoded_file):
         # TODO nadenken over beter upload van bestanden, vooral grote bestanden komen niet heel door
         kind = filetype.guess(decoded_file)
-        return kind.extension
+        if kind:
+            return kind.extension
+        return
 
 
 class BijlageSerializer(serializers.ModelSerializer):
