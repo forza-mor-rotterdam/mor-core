@@ -99,7 +99,7 @@ class MeldingManager(models.Manager):
                     melding.locaties_voor_melding.add(locatie)
 
                 first_locatie = signaal.locaties_voor_signaal.filter(
-                    geometrie__isnull=False
+                    locatie_type__in=["graf", "adres"],
                 ).first()
                 if first_locatie:
                     melding.referentie_locatie = first_locatie
