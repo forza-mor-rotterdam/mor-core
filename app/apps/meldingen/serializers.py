@@ -205,6 +205,8 @@ class TaakopdrachtMeldingLijstSerializer(serializers.ModelSerializer):
         fields = (
             "titel",
             "resolutie",
+            "verwijderd_op",
+            "afgesloten_op",
             "status",
         )
 
