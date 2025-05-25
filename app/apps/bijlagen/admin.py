@@ -19,15 +19,18 @@ class BijlageAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "uuid",
+        "bestand_hash",
         "aangemaakt_op",
         "is_afbeelding",
         "mimetype",
-        "content_object",
+        "content_type",
+        "object_id",
         "bestand",
         "afbeelding",
         "afbeelding_verkleind",
         "opgeruimd_op",
     )
+    list_filter = ("content_type",)
     actions = (
         action_aanmaken_afbeelding_versies,
         action_bijlage_opruimen,

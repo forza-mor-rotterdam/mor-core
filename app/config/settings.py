@@ -41,6 +41,11 @@ PORT = "" if not DEBUG else ":8002"
 DEFAULT_ALLOWED_HOSTS = ".forzamor.nl,localhost,127.0.0.1,.mor.local"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", DEFAULT_ALLOWED_HOSTS).split(",")
 
+ENABLE_DJANGO_ADMIN_LOGIN = os.getenv("ENABLE_DJANGO_ADMIN_LOGIN", False) in TRUE_VALUES
+
+LOGIN_URL = "login"
+LOGOUT_URL = "logout"
+
 SIGNALEN_API = os.getenv("SIGNALEN_API")
 MELDING_API = os.getenv("MELDING_API")
 

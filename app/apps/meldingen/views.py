@@ -2,13 +2,16 @@ import prometheus_client
 from apps.authenticatie.auth import TokenAuthentication
 from apps.meldingen.metrics_collectors import CustomCollector
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseForbidden
+from django.shortcuts import redirect
 
 
-@login_required
-def login_required_view(request):
-    return HttpResponseRedirect(redirect_to="/admin/")
+def root(request):
+    if request.user.is_staff or request.user.is_superuser:
+        return redirect("/admin/")
+    if request.user.is_authenticated:
+        return HttpResponse("Geen rechten")
+    return HttpResponse("Niet geauthentiseerd, ga naar /login/")
 
 
 def serve_protected_media(request):
@@ -26,6 +29,8 @@ def prometheus_django_metrics(request):
     registry = prometheus_client.CollectorRegistry()
     registry.register(CustomCollector())
     metrics_page = prometheus_client.generate_latest(registry)
+    # from django.shortcuts import redirect, render
+    # return render(request, "base.html", {"content": metrics_page})
     return HttpResponse(
         metrics_page, content_type=prometheus_client.CONTENT_TYPE_LATEST
     )

@@ -4,6 +4,7 @@ import celery
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
+from django.db.models import OuterRef, Subquery
 from django_celery_beat.models import ClockedSchedule, PeriodicTask
 
 logger = get_task_logger(__name__)
@@ -174,3 +175,90 @@ def task_bijlages_voor_melding_opruimen(self, melding_id):
     #         one_off=True,
     #         args=[bijlage.id],
     #     )
+
+
+@shared_task(bind=True)
+def task_vernieuw_melding_zoek_tekst_voor_melding_reeks(
+    self, start_index=None, eind_index=None, order_by="id", melding_ids=[]
+):
+    from apps.meldingen.models import Melding
+
+    if not melding_ids:
+        melding_ids = list(
+            Melding.objects.all().order_by(order_by).values_list("id", flat=True)
+        )[start_index:eind_index]
+    for melding_id in melding_ids:
+        task_vernieuw_melding_zoek_tekst.delay(melding_id)
+
+    return f"Melding zoek tekst vernieuwen voor, start_index={start_index}, eind_index={eind_index}, melding_ids={len(melding_ids)}"
+
+
+@shared_task(bind=True)
+def task_vernieuw_melding_zoek_tekst(self, melding_id):
+    from apps.meldingen.models import Melding
+
+    melding = Melding.objects.filter(id=melding_id).first()
+
+    if not melding:
+        return f"Melding met id={melding_id}, is nog niet gevonden"
+
+    melding.zoek_tekst = melding.get_zoek_tekst()
+    melding.save(update_fields=["zoek_tekst"])
+
+    return f"Melding zoek tekst vernieuwd voor melding_id={melding_id}"
+
+
+@shared_task(bind=True)
+def task_set_melding_referentie_locatie(self):
+    from apps.locatie.models import Locatie
+    from apps.meldingen.models import Melding
+
+    locaties = Locatie.objects.filter(
+        melding=OuterRef("pk"),
+        locatie_type__in=["adres", "graf"],
+    ).order_by("-gewicht")
+
+    meldingen = Melding.objects.filter(
+        referentie_locatie__isnull=True,
+    ).annotate(
+        primair_locatie_id=Subquery(locaties.values("id")[:1]),
+    )
+
+    update_list = []
+    for melding in meldingen:
+        melding.referentie_locatie_id = melding.primair_locatie_id
+        update_list.append(melding)
+
+    Melding.objects.bulk_update(update_list, ["referentie_locatie"])
+
+    return f"Aantal geupdate locaties {len(meldingen)}"
+
+
+@shared_task(bind=True)
+def task_set_melding_thumbnail_afbeelding_voor_melding_reeks(
+    self, start_index=None, eind_index=None, order_by="id", melding_ids=[]
+):
+    from apps.meldingen.models import Melding
+
+    if not melding_ids:
+        melding_ids = list(
+            Melding.objects.all().order_by(order_by).values_list("id", flat=True)
+        )[start_index:eind_index]
+    for melding_id in melding_ids:
+        task_set_melding_thumbnail_afbeelding.delay(melding_id)
+
+    return f"Set thumbnail_afbeelding voor melding indexes, start_index={start_index}, eind_index={eind_index}, melding_ids={len(melding_ids)}"
+
+
+@shared_task(bind=True)
+def task_set_melding_thumbnail_afbeelding(self, melding_id):
+    from apps.meldingen.models import Melding
+
+    melding = Melding.objects.get(id=melding_id)
+
+    melding_bijlage = melding.get_bijlagen().first()
+    if melding_bijlage:
+        melding.thumbnail_afbeelding = melding_bijlage
+        melding.save(update_fields=["thumbnail_afbeelding"])
+
+    return f"Bijlage {melding_bijlage}, voor melding_id={melding_id}"

@@ -9,7 +9,6 @@ from apps.locatie.serializers import (
     LocatieRelatedField,
 )
 from apps.meldingen.models import Melding, Meldinggebeurtenis
-from apps.services.pdok import PDOKService
 from apps.signalen.serializers import SignaalMeldingListSerializer, SignaalSerializer
 from apps.status.serializers import StatusSerializer
 from apps.taken.models import Taakgebeurtenis, Taakopdracht, Taakstatus
@@ -18,13 +17,11 @@ from apps.taken.serializers import (
     TaakgebeurtenisSerializer,
     TaakopdrachtSerializer,
 )
-from django.conf import settings
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from shapely.wkt import loads
 
 
 class MeldingLinksSerializer(serializers.Serializer):
@@ -208,6 +205,8 @@ class TaakopdrachtMeldingLijstSerializer(serializers.ModelSerializer):
         fields = (
             "titel",
             "resolutie",
+            "verwijderd_op",
+            "afgesloten_op",
             "status",
         )
 
@@ -245,11 +244,8 @@ class MeldingSerializer(serializers.ModelSerializer):
     taakopdrachten_voor_melding = TaakopdrachtMeldingLijstSerializer(
         many=True, read_only=True
     )
-    locaties_voor_melding = LocatieRelatedField(many=True, read_only=True)
-    bijlagen = BijlageAlleenLezenSerializer(many=True, read_only=True)
-    meldinggebeurtenissen = MeldinggebeurtenisMeldingLijstSerializer(
-        source="meldinggebeurtenissen_voor_melding", many=True, read_only=True
-    )
+    referentie_locatie = LocatieRelatedField(read_only=True)
+    thumbnail_afbeelding = BijlageAlleenLezenSerializer(read_only=True)
 
     class Meta:
         model = Melding
@@ -262,15 +258,14 @@ class MeldingSerializer(serializers.ModelSerializer):
             "origineel_aangemaakt",
             "afgesloten_op",
             "urgentie",
-            "bijlagen",
+            "thumbnail_afbeelding",
             "meta",
             "onderwerpen",
-            "locaties_voor_melding",
+            "referentie_locatie",
             "signalen_voor_melding",
             "status",
             "resolutie",
             "taakopdrachten_voor_melding",
-            "meldinggebeurtenissen",
         )
         read_only_fields = (
             "id",
@@ -278,29 +273,14 @@ class MeldingSerializer(serializers.ModelSerializer):
             "aangemaakt_op",
             "aangepast_op",
             "urgentie",
+            "thumbnail_afbeelding",
             "origineel_aangemaakt",
             "omschrijving_kort",
             "afgesloten_op",
             "meta",
             "meta_uitgebreid",
             "resolutie",
-            "meldinggebeurtenissen",
         )
-
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-
-        # Sorteer locaties_voor_melding op 'gewicht' veld
-        locaties_sorted = sorted(
-            representation["locaties_voor_melding"],
-            key=lambda locatie: locatie.get("gewicht", 0),
-            reverse=True,
-        )
-
-        # Vervang originele locaties_voor_melding met de gesorteerde lijst
-        representation["locaties_voor_melding"] = locaties_sorted
-
-        return representation
 
 
 class MeldingDetailSerializer(MeldingSerializer):
@@ -359,30 +339,23 @@ class MeldingDetailSerializer(MeldingSerializer):
             "signalen_voor_melding",
         )
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+
+        # Sorteer locaties_voor_melding op 'gewicht' veld
+        locaties_sorted = sorted(
+            representation["locaties_voor_melding"],
+            key=lambda locatie: locatie.get("gewicht", 0),
+            reverse=True,
+        )
+
+        # Vervang originele locaties_voor_melding met de gesorteerde lijst
+        representation["locaties_voor_melding"] = locaties_sorted
+
+        return representation
+
 
 class MeldingAantallenSerializer(serializers.Serializer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.wijken_gps_lookup = self.fetch_wijken_gps_lookup()
-
-    def fetch_wijken_gps_lookup(self):
-        gemeentecode = settings.WIJKEN_EN_BUURTEN_GEMEENTECODE
-        wijken = PDOKService().get_wijken_middels_gemeentecode(gemeentecode)
-        return {wijk.get("wijknaam"): wijk.get("centroide_ll") for wijk in wijken}
-
-    def to_representation(self, instance):
-        wijk = instance.get("wijk")
-        gps = self.wijken_gps_lookup.get(wijk)
-        gps = loads(gps)
-        if gps:
-            lat = str(gps.coords[0][1])
-            lon = str(gps.coords[0][0])
-        else:
-            lat = ""
-            lon = ""
-
-        return {
-            **instance,
-            "lat": lat,
-            "lon": lon,
-        }
+    count = serializers.IntegerField()
+    wijk = serializers.CharField()
+    onderwerp = serializers.CharField(source="onderwerp_naam")

@@ -3,10 +3,14 @@ import logging
 from apps.bijlagen.models import Bijlage
 from apps.meldingen.managers import MeldingManager
 from apps.meldingen.querysets import MeldingQuerySet
+from apps.signalen.models import Signaal
+from apps.taken.models import Taakgebeurtenis
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.sites.models import Site
+from django.db.models import Q
 from rest_framework.reverse import reverse
 from utils.fields import DictJSONField
 from utils.models import BasisModel
@@ -126,10 +130,33 @@ class Melding(BasisModel):
         default=ResolutieOpties.NIET_OPGELOST,
     )
     bijlagen = GenericRelation(Bijlage)
+    thumbnail_afbeelding = models.OneToOneField(
+        to="bijlagen.Bijlage",
+        related_name="melding_voor_bijlage",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
     onderwerpen = models.ManyToManyField(
         to="aliassen.OnderwerpAlias",
         related_name="meldingen_voor_onderwerpen",
         blank=True,
+    )
+    onderwerp = models.URLField(
+        blank=True,
+        null=True,
+    )
+    referentie_locatie = models.OneToOneField(
+        to="locatie.Locatie",
+        related_name="melding_voor_locatie",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
+    zoek_tekst = models.TextField(
+        default="",
+        blank=True,
+        null=True,
     )
 
     objects = MeldingQuerySet.as_manager()
@@ -147,15 +174,112 @@ class Melding(BasisModel):
     def get_adressen(self):
         return self.locaties_voor_melding
 
+    def get_zoek_tekst(self):
+        from apps.locatie.models import Locatie
+        from apps.melders.models import Melder
+
+        signalen_voor_melding = self.signalen_voor_melding.all()
+        melders = Melder.objects.filter(
+            id__in=list(signalen_voor_melding.values_list("melder__id", flat=True))
+        )
+        locaties_voor_melding = (
+            Locatie.objects.exclude(locatie_type="lichtmast")
+            .filter(
+                Q(melding__id=self.id)
+                | Q(
+                    signaal__id__in=list(
+                        signalen_voor_melding.values_list("id", flat=True)
+                    )
+                )
+            )
+            .distinct()
+        )
+
+        locatie_zoek_teksten = [
+            locatie.get_zoek_tekst() for locatie in locaties_voor_melding
+        ]
+
+        bron_signaal_ids = list(
+            signalen_voor_melding.filter(
+                bron_signaal_id__isnull=False,
+            ).values_list("bron_signaal_id", flat=True)
+        )
+
+        melder_zoek_dicts = [melder.get_zoek_tekst() for melder in melders]
+        melder_zoek_teksten = [
+            melder_dict[melder_zoek_field]
+            for melder_dict in melder_zoek_dicts
+            for melder_zoek_field in [
+                "voornaam_achternaam",
+                "email",
+                "naam",
+                "telefoonnummer",
+            ]
+        ]
+
+        return ",".join(
+            list(
+                set(
+                    [
+                        tekst
+                        for tekst in bron_signaal_ids
+                        + locatie_zoek_teksten
+                        + melder_zoek_teksten
+                        if tekst
+                    ]
+                )
+            )
+        )
+
+    def get_bijlagen(self, order_by="aangemaakt_op"):
+        bijlagen = Bijlage.objects.filter(
+            (
+                Q(object_id=self.id)
+                & Q(content_type=ContentType.objects.get_for_model(Melding))
+            )
+            | (
+                Q(object_id__in=self.signalen_voor_melding.values_list("id", flat=True))
+                & Q(content_type=ContentType.objects.get_for_model(Signaal))
+            )
+            | (
+                Q(
+                    object_id__in=self.meldinggebeurtenissen_voor_melding.values_list(
+                        "id", flat=True
+                    )
+                )
+                & Q(content_type=ContentType.objects.get_for_model(Meldinggebeurtenis))
+            )
+            | (
+                Q(
+                    object_id__in=[
+                        taakgebeurtenis.id
+                        for taakopdracht in self.taakopdrachten_voor_melding.all()
+                        for taakgebeurtenis in taakopdracht.taakgebeurtenissen_voor_taakopdracht.all()
+                    ]
+                )
+                & Q(content_type=ContentType.objects.get_for_model(Taakgebeurtenis))
+            )
+        ).order_by(order_by)
+        return bijlagen
+
+    @property
     def actieve_taakopdrachten(self):
         from apps.taken.models import Taakstatus
 
-        return self.taakopdrachten_voor_melding.exclude(
-            status__naam__in=[
-                Taakstatus.NaamOpties.VOLTOOID,
-                Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
-            ]
+        taakopdrachten_voor_melding = self.taakopdrachten_voor_melding.all()
+
+        taakopdrachten_voor_melding_zonder_valide_taken = (
+            taakopdrachten_voor_melding.exclude(
+                Q(
+                    status__naam__in=[
+                        Taakstatus.NaamOpties.VOLTOOID,
+                        Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
+                    ]
+                )
+                | Q(verwijderd_op__isnull=False),
+            )
         )
+        return taakopdrachten_voor_melding_zonder_valide_taken
 
     def get_absolute_url(self):
         domain = Site.objects.get_current().domain

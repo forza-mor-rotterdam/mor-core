@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
 from .models import Melding
@@ -49,6 +50,66 @@ class AfgeslotenOpFilter(admin.SimpleListFilter):
             return queryset.filter(afgesloten_op__isnull=True)
         else:
             return queryset
+
+
+class BijlagenAantalFilter(admin.SimpleListFilter):
+    title = "Bijlagen aantal"
+    parameter_name = "bijlagen_aantal"
+
+    def lookups(self, request, model_admin):
+        return (("bijlagen_aantal__gt", "1 of meer"),)
+
+    def queryset(self, request, queryset):
+        if self.value():
+            queryset = queryset.annotate(bijlagen_aantal=Count("bijlagen")).filter(
+                **{self.value(): 0}
+            )
+        return queryset
+
+
+class ThumbnailAfbeeldingFilter(admin.SimpleListFilter):
+    title = "Thumbnail afbeelding"
+    parameter_name = "thumbnail_afbeelding"
+
+    def lookups(self, request, model_admin):
+        return (("thumbnail_afbeelding__isnull", "Geen thumbnail"),)
+
+    def queryset(self, request, queryset):
+        if self.value():
+            queryset = queryset.filter(**{self.value(): True})
+        return queryset
+
+
+class ReferentieLocatieFilter(admin.SimpleListFilter):
+    title = "Referentie locatie"
+    parameter_name = "referentie_locatie"
+
+    def lookups(self, request, model_admin):
+        return (("referentie_locatie__isnull", "Geen referentie locatie"),)
+
+    def queryset(self, request, queryset):
+        if self.value():
+            queryset = queryset.filter(**{self.value(): True})
+        return queryset
+
+
+class ZoekTekstFilter(admin.SimpleListFilter):
+    title = "Zoek tekst"
+    parameter_name = "zoek_tekst"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("zoek_tekst_niet_gezet", "Zoek tekst is None"),
+            ("zoek_tekst_lege_string", "Zoek tekst is ''"),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value():
+            if self.value() == "zoek_tekst_niet_gezet":
+                return queryset.filter(zoek_tekst__isnull=True)
+            if self.value() == "zoek_tekst_lege_string":
+                return queryset.filter(zoek_tekst="")
+        return queryset
 
 
 class OnderwerpenFilter(admin.SimpleListFilter):

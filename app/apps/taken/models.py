@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.gis.db import models
 from django.contrib.sites.models import Site
+from django.db.models import Q
 from rest_framework.exceptions import APIException
 from rest_framework.reverse import reverse
 from utils.fields import DictJSONField
@@ -163,13 +164,33 @@ class Taakopdracht(BasisModel):
         verbose_name = "Taakopdracht"
         verbose_name_plural = "Taakopdrachten"
 
+    @property
+    def is_voltooid(self):
+        return (
+            self.status
+            and self.status.naam
+            in [
+                Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
+                Taakstatus.NaamOpties.VOLTOOID,
+            ]
+            or self.verwijderd_op
+        )
+
+    def valideer_en_set_resolutie(self, nieuwe_resolutie):
+        self.resolutie = Taakopdracht.ResolutieOpties.OPGELOST
+        if nieuwe_resolutie in [ro[0] for ro in Taakopdracht.ResolutieOpties.choices]:
+            self.resolutie = nieuwe_resolutie
+
     def clean(self):
         if self.pk is None:
             openstaande_taken = self.melding.taakopdrachten_voor_melding.exclude(
-                status__naam__in=[
-                    Taakstatus.NaamOpties.VOLTOOID,
-                    Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
-                ]
+                Q(
+                    status__naam__in=[
+                        Taakstatus.NaamOpties.VOLTOOID,
+                        Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
+                    ]
+                )
+                | Q(verwijderd_op__isnull=False)
             )
             gebruikte_taaktypes = list(
                 {

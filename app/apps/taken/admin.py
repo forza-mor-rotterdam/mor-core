@@ -3,12 +3,8 @@ import importlib
 import json
 
 from apps.taken.models import Taakgebeurtenis, Taakopdracht, Taakstatus
-from apps.taken.tasks import (
-    task_fix_taakopdracht_issues,
-    task_taak_aanmaken,
-    task_taak_status_aanpassen,
-)
 from django.contrib import admin, messages
+from django.db import transaction
 from django.utils.safestring import mark_safe
 from django_celery_beat.admin import PeriodicTaskAdmin
 from django_celery_beat.models import PeriodicTask
@@ -26,21 +22,26 @@ from .admin_filters import (
 )
 
 
-@admin.action(description="Update fixer taak status")
-def action_update_fixer_taak_status(modeladmin, request, queryset):
-    for taakgebeurtenis in queryset.all():
-        if taakgebeurtenis.taakstatus.naam in [
-            Taakstatus.NaamOpties.VOLTOOID,
-            Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
-        ]:
-            task_taak_status_aanpassen.delay(
-                taakgebeurtenis_id=taakgebeurtenis.id,
-                voorkom_dubbele_sync=False,
+@admin.action(
+    description="Verwijder geselecteerde taakgebeurtenissen met meldinggebeurtenis"
+)
+def action_verwijder_taakgebeurtenis_met_meldinggebeurtenis(
+    modeladmin, request, queryset
+):
+    from apps.meldingen.models import Meldinggebeurtenis
+
+    with transaction.atomic():
+        deleted_meldinggebeurtenissen = Meldinggebeurtenis.objects.filter(
+            taakgebeurtenis__in=queryset
+        ).delete()
+        deleted_taakgebeurtenissen = queryset.delete()
+
+        transaction.on_commit(
+            lambda: messages.info(
+                request,
+                f"Verwijderd met taakgebeurtenissen: {deleted_taakgebeurtenissen}, en verwijderd met meldinggebeurtenissen: {deleted_meldinggebeurtenissen}",
             )
-        if taakgebeurtenis.taakstatus.naam == Taakstatus.NaamOpties.NIEUW:
-            task_taak_aanmaken.delay(
-                taakgebeurtenis_id=taakgebeurtenis.id,
-            )
+        )
 
 
 class TaakstatusAdmin(admin.ModelAdmin):
@@ -70,9 +71,9 @@ class TaakgebeurtenisAdmin(admin.ModelAdmin):
         "taakstatus",
         "taakopdracht",
     )
-    search_fields = ("taakopdracht__melding__uuid",)
+    search_fields = ("taakopdracht__melding__uuid", "taakopdracht__uuid", "uuid")
     date_hierarchy = "aangemaakt_op"
-    actions = (action_update_fixer_taak_status,)
+    actions = (action_verwijder_taakgebeurtenis_met_meldinggebeurtenis,)
 
     def melding_uuid(self, obj):
         return obj.taakopdracht.melding.uuid
@@ -109,15 +110,6 @@ def action_set_taak_afgesloten_op_for_melding_afgesloten(modeladmin, request, qu
             taakopdracht.save()
 
 
-@admin.action(description="Fix problemen met taakopdrachten")
-def action_task_fix_taakopdracht_issues(self, request, queryset):
-    for taakopdracht in queryset.all():
-        task_fix_taakopdracht_issues.delay(taakopdracht.id)
-    self.message_user(
-        request, f"Updating fixer taak for {len(queryset.all())} taakopdrachten!"
-    )
-
-
 class TaakopdrachtAdmin(admin.ModelAdmin):
     list_display = (
         "id",
@@ -134,10 +126,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
         "pretty_status",
         "resolutie",
     )
-    actions = (
-        action_set_taak_afgesloten_op_for_melding_afgesloten,
-        action_task_fix_taakopdracht_issues,
-    )
+    actions = (action_set_taak_afgesloten_op_for_melding_afgesloten,)
     list_filter = (
         StatusFilter,
         ResolutieFilter,
@@ -146,7 +135,9 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
     )
     search_fields = [
         "id",
+        "uuid",
         "melding__id",
+        "melding__uuid",
     ]
     raw_id_fields = [
         "melding",
