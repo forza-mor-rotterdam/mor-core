@@ -115,6 +115,7 @@ class MeldingAdmin(admin.ModelAdmin):
                     "status",
                     "resolutie",
                     "onderwerpen",
+                    "referentie_locatie",
                 )
             },
         ),
