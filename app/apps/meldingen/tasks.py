@@ -209,6 +209,48 @@ def task_vernieuw_melding_zoek_tekst(self, melding_id):
 
 
 @shared_task(bind=True)
+def task_set_melding_referentie_locatie_melding_voor_reeks(
+    self, start_index=None, eind_index=None, order_by="id", melding_ids=[]
+):
+    from apps.meldingen.models import Melding
+
+    if not melding_ids:
+        melding_ids = list(
+            Melding.objects.all().order_by(order_by).values_list("id", flat=True)
+        )[start_index:eind_index]
+    for melding_id in melding_ids:
+        task_set_melding_referentie_locatie_voor_melding.delay(melding_id)
+
+    return f"Melding referentie locaties vernieuwen voor, start_index={start_index}, eind_index={eind_index}, melding_ids={len(melding_ids)}"
+
+
+@shared_task(bind=True)
+def task_set_melding_referentie_locatie_voor_melding(self, melding_id):
+    from apps.locatie.models import Locatie
+    from apps.meldingen.models import Melding
+
+    locatie = (
+        Locatie.objects.filter(
+            melding=melding_id,
+            locatie_type__in=["adres", "graf"],
+        )
+        .order_by("-gewicht")
+        .first()
+    )
+
+    melding = Melding.objects.filter(
+        referentie_locatie__isnull=True,
+        id=melding_id,
+    ).first()
+
+    if melding and locatie:
+        melding.referentie_locatie = locatie
+        melding.save(update_fields=["referentie_locatie"])
+
+    return f"Referentie locatie set voor melding: {melding_id}"
+
+
+@shared_task(bind=True)
 def task_set_melding_referentie_locatie(self):
     from apps.locatie.models import Locatie
     from apps.meldingen.models import Melding
