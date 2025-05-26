@@ -121,6 +121,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
         "aangemaakt_op",
         "aangepast_op",
         "afgesloten_op",
+        "verwijderd_op",
         "pretty_afhandeltijd",
         "melding__afgesloten_op",
         "pretty_status",

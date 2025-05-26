@@ -19,7 +19,7 @@ from apps.meldingen.tasks import (
     task_vernieuw_melding_zoek_tekst,
 )
 from apps.status.models import Status
-from apps.taken.models import Taakgebeurtenis, Taakstatus
+from apps.taken.models import Taakgebeurtenis
 from apps.taken.tasks import task_taak_aanmaken, task_taak_verwijderen
 from celery import chord
 from django.dispatch import receiver
@@ -44,13 +44,16 @@ def signaal_aangemaakt_handler(sender, melding, signaal, *args, **kwargs):
 
 
 @receiver(status_aangepast, dispatch_uid="melding_status_aangepast")
-def status_aangepast_handler(sender, melding, status, vorige_status, *args, **kwargs):
+def status_aangepast_handler(
+    sender, melding, status, vorige_status, taakopdrachten, *args, **kwargs
+):
     if kwargs.get("raw"):
         return
     if melding.afgesloten_op and melding.status.is_afgesloten():
         afgesloten.send_robust(
             sender=sender,
             melding=melding,
+            taakopdrachten=taakopdrachten,
         )
     else:
         task_notificaties_voor_melding_veranderd.delay(
@@ -70,25 +73,20 @@ def urgentie_aangepast_handler(sender, melding, vorige_urgentie, *args, **kwargs
 
 
 @receiver(afgesloten, dispatch_uid="melding_afgesloten")
-def afgesloten_handler(sender, melding, *args, **kwargs):
+def afgesloten_handler(sender, melding, taakopdrachten=[], *args, **kwargs):
     if kwargs.get("raw"):
         return
     task_notificaties_voor_melding_veranderd.delay(
         melding_url=melding.get_absolute_url(),
         notificatie_type="afgesloten",
     )
-
-    for taakgebeurtenis in Taakgebeurtenis.objects.filter(
-        taakstatus__naam__in=[
-            Taakstatus.NaamOpties.VOLTOOID,
-            Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
-        ],
-        taakopdracht__melding=melding,
-        additionele_informatie__taak_url__isnull=True,
-    ):
+    for taakopdracht in taakopdrachten:
+        taakgebeurtenis = taakopdracht.taakgebeurtenissen_voor_taakopdracht.filter(
+            resolutie=Taakgebeurtenis.ResolutieOpties.GEANNULEERD
+        ).first()
         task_taak_verwijderen.delay(
-            taakopdracht_id=taakgebeurtenis.taakopdracht.id,
-            gebruiker=taakgebeurtenis.gebruiker,
+            taakopdracht_id=taakopdracht.id,
+            gebruiker=taakgebeurtenis.gebruiker if taakgebeurtenis else None,
         )
 
     if melding.status.naam == Status.NaamOpties.AFGEHANDELD:
