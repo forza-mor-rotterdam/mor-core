@@ -221,6 +221,7 @@ class MeldingManager(models.Manager):
             locked_melding.afgesloten_op = None
             locked_melding.status = melding_gebeurtenis.status
 
+            locked_taakopdrachten = None
             if locked_melding.status.is_afgesloten():
                 try:
                     locked_taakopdrachten = (
@@ -285,6 +286,7 @@ class MeldingManager(models.Manager):
                     melding=locked_melding,
                     status=melding_gebeurtenis.status,
                     vorige_status=vorige_status,
+                    taakopdrachten=locked_taakopdrachten,
                 )
             )
 
