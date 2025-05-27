@@ -60,7 +60,7 @@ services:
 
   core_celery_worker:
     build: *build-definition
-    command: "celery -A config worker -l info"
+    command: ["bash", "/app/deploy/docker-entrypoint.celery_worker.sh"]
     depends_on:
       database:
         condition: service_started
