@@ -56,6 +56,7 @@ class LocatieAdmin(admin.ModelAdmin):
         "primair",
         "signaal",
         "huisnummer",
+        "postcode",
         "straatnaam",
         "geometrie",
         "gebruiker",

@@ -10,7 +10,6 @@ _term() {
 trap _term SIGTERM
 
 # Initialize celery worker
-celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler --detach
 celery -A config worker -l info &
 
 child=$!
