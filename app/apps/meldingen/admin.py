@@ -81,13 +81,16 @@ class MeldingAdmin(admin.ModelAdmin):
         "thumbnail_afbeelding",
         "uuid",
         "urgentie",
+        "resolutie",
+        "afhandelreden",
+        "specificatie",
+        "afgesloten_op",
         "status_naam",
         "onderwerp_naam",
         "referentie_locatie",
         "origineel_aangemaakt",
         "aangemaakt_op",
         "aangepast_op",
-        "afgesloten_op",
         "zoek_tekst",
     )
     list_filter = (
