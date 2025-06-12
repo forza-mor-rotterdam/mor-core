@@ -1,7 +1,11 @@
 import logging
 
-from apps.meldingen.filtersets import MeldingFilter, RelatedOrderingFilter
-from apps.meldingen.models import Melding, Meldinggebeurtenis
+from apps.meldingen.filtersets import (
+    MeldingFilter,
+    RelatedOrderingFilter,
+    SpecificatieFilterSet,
+)
+from apps.meldingen.models import Melding, Meldinggebeurtenis, Specificatie
 from apps.meldingen.serializers import (
     MeldingAantallenSerializer,
     MeldingDetailSerializer,
@@ -9,6 +13,7 @@ from apps.meldingen.serializers import (
     MeldingGebeurtenisStatusSerializer,
     MeldingGebeurtenisUrgentieSerializer,
     MeldingSerializer,
+    SpecificatieSerializer,
 )
 from apps.taken.serializers import (
     TaakopdrachtNotificatieSaveSerializer,
@@ -19,6 +24,7 @@ from apps.taken.serializers import (
 from config.context import db
 from django.conf import settings
 from django.http import Http404, JsonResponse
+from django.utils import timezone
 from django_filters import rest_framework as filters
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -206,7 +212,6 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
 
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
-            return super().list(request)
 
     def retrieve(self, request, uuid=None):
         with db(settings.READONLY_DATABASE_KEY):
@@ -235,7 +240,6 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
             serializer = MeldingDetailSerializer(
                 self.get_object(), context={"request": request}
             )
-
             return Response(serializer.data)
         return Response(
             data=serializer.errors,
@@ -505,3 +509,22 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
                 many=True,
             )
         return Response(serializer.data)
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter("naam", OpenApiTypes.STR, OpenApiParameter.QUERY),
+    ]
+)
+class SpecificatieViewSet(viewsets.ModelViewSet):
+    lookup_field = "uuid"
+    queryset = Specificatie.objects.all()
+    serializer_class = SpecificatieSerializer
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = SpecificatieFilterSet
+
+    def destroy(self, request, *args, **kwargs):
+        specificatie = self.get_object()
+        specificatie.verwijderd_op = timezone.now()
+        specificatie.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)

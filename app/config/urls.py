@@ -10,7 +10,11 @@ from apps.bijlagen.viewsets import BijlageViewSet
 from apps.health.views import healthz
 from apps.locatie.viewsets import LocatieViewSet
 from apps.meldingen.views import prometheus_django_metrics, root, serve_protected_media
-from apps.meldingen.viewsets import MeldinggebeurtenisViewSet, MeldingViewSet
+from apps.meldingen.viewsets import (
+    MeldinggebeurtenisViewSet,
+    MeldingViewSet,
+    SpecificatieViewSet,
+)
 from apps.signalen.viewsets import SignaalViewSet
 from apps.status.viewsets import StatusViewSet
 from apps.taken.viewsets import TaakgebeurtenisViewSet, TaakopdrachtViewSet
@@ -42,6 +46,7 @@ router.register(r"taakgebeurtenis", TaakgebeurtenisViewSet, basename="taakgebeur
 router.register(r"bijlage", BijlageViewSet, basename="bijlage")
 router.register(r"status", StatusViewSet, basename="status")
 router.register(r"locatie", LocatieViewSet, basename="locatie")
+router.register(r"specificatie", SpecificatieViewSet, basename="specificatie")
 
 urlpatterns = [
     path("", root, name="root"),

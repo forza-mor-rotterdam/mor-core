@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from apps.bijlagen.models import Bijlage
 from apps.meldingen.managers import MeldingManager
@@ -11,11 +12,17 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.sites.models import Site
 from django.db.models import Q
+from django_extensions.db.fields import AutoSlugField
 from rest_framework.reverse import reverse
 from utils.fields import DictJSONField
 from utils.models import BasisModel
 
 logger = logging.getLogger(__name__)
+
+
+class ResolutieOpties(models.TextChoices):
+    OPGELOST = "opgelost", "Opgelost"
+    NIET_OPGELOST = "niet_opgelost", "Niet opgelost"
 
 
 class Meldinggebeurtenis(BasisModel):
@@ -46,6 +53,24 @@ class Meldinggebeurtenis(BasisModel):
         max_length=40,
         choices=GebeurtenisType.choices,
         default=GebeurtenisType.STANDAARD,
+    )
+    resolutie = models.CharField(
+        max_length=50,
+        choices=ResolutieOpties.choices,
+        blank=True,
+        null=True,
+    )
+    afhandelreden = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+    specificatie = models.ForeignKey(
+        to="meldingen.Specificatie",
+        related_name="meldinggebeurtenissen_voor_specificatie",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
     )
     urgentie = models.FloatField(null=True, blank=True)
     bijlagen = GenericRelation(Bijlage)
@@ -108,12 +133,20 @@ class Melding(BasisModel):
     Als er geen taak_applicaties zijn linked aan deze melding, kan b.v. MidOffice deze handmatig toewijzen
     """
 
-    class ResolutieOpties(models.TextChoices):
-        OPGELOST = "opgelost", "Opgelost"
-        NIET_OPGELOST = "niet_opgelost", "Niet opgelost"
-
     origineel_aangemaakt = models.DateTimeField()
     afgesloten_op = models.DateTimeField(null=True, blank=True)
+    afhandelreden = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+    specificatie = models.ForeignKey(
+        to="meldingen.Specificatie",
+        related_name="meldingen_voor_specificatie",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
     urgentie = models.FloatField(default=0.2)
     meta = DictJSONField(default=dict)
     meta_uitgebreid = DictJSONField(default=dict)
@@ -127,7 +160,8 @@ class Melding(BasisModel):
     resolutie = models.CharField(
         max_length=50,
         choices=ResolutieOpties.choices,
-        default=ResolutieOpties.NIET_OPGELOST,
+        blank=True,
+        null=True,
     )
     bijlagen = GenericRelation(Bijlage)
     thumbnail_afbeelding = models.OneToOneField(
@@ -293,3 +327,30 @@ class Melding(BasisModel):
     class Meta:
         verbose_name = "Melding"
         verbose_name_plural = "Meldingen"
+
+
+class Specificatie(BasisModel):
+    uuid = models.UUIDField(
+        auto_created=True,
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name="id",
+    )
+    naam = models.CharField(
+        max_length=255,
+        unique=True,
+    )
+    slug = AutoSlugField(
+        populate_from=("naam",),
+        overwrite=True,
+        editable=True,
+        unique=True,
+    )
+    verwijderd_op = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    def __str__(self):
+        return self.naam

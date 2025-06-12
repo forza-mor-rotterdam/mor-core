@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
-from .models import Melding
+from .models import Melding, ResolutieOpties
 
 
 class StatusFilter(admin.SimpleListFilter):
@@ -24,7 +24,7 @@ class ResolutieFilter(admin.SimpleListFilter):
     parameter_name = "resolutie"
 
     def lookups(self, request, model_admin):
-        return Melding.ResolutieOpties.choices
+        return ResolutieOpties.choices
 
     def queryset(self, request, queryset):
         if self.value():
