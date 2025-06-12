@@ -8,7 +8,7 @@ from apps.locatie.serializers import (
     LichtmastSerializer,
     LocatieRelatedField,
 )
-from apps.meldingen.models import Melding, Meldinggebeurtenis
+from apps.meldingen.models import Melding, Meldinggebeurtenis, Specificatie
 from apps.signalen.serializers import SignaalMeldingListSerializer, SignaalSerializer
 from apps.status.serializers import StatusSerializer
 from apps.taken.models import Taakgebeurtenis, Taakopdracht, Taakstatus
@@ -22,6 +22,63 @@ from drf_spectacular.utils import extend_schema_field
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 from rest_framework.reverse import reverse
+
+
+class LinkSerializer(serializers.Serializer):
+    href = serializers.URLField()
+
+
+class SpecificatieLinksSerializer(serializers.Serializer):
+    self = serializers.SerializerMethodField()
+
+    @extend_schema_field(LinkSerializer())
+    def get_self(self, obj):
+        serializer = LinkSerializer(
+            {
+                "href": reverse(
+                    "v1:specificatie-detail",
+                    kwargs={"uuid": obj.uuid},
+                    request=self.context.get("request"),
+                )
+            }
+        )
+        return serializer.data
+
+
+class SpecificatieHyperlink(serializers.HyperlinkedRelatedField):
+    view_name = "v1:specificatie-detail"
+    queryset = Specificatie.objects.all()
+
+    def get_url(self, obj, view_name, request, format):
+        url_kwargs = {"uuid": obj.uuid}
+        return reverse(view_name, kwargs=url_kwargs, request=request, format=format)
+
+    def get_object(self, view_name, view_args, view_kwargs):
+        lookup_kwargs = {"uuid": view_kwargs["uuid"]}
+        return self.get_queryset().get(**lookup_kwargs)
+
+
+class SpecificatieSerializer(serializers.ModelSerializer):
+    _links = SpecificatieLinksSerializer(source="*", read_only=True)
+
+    class Meta:
+        model = Specificatie
+        fields = (
+            "_links",
+            "uuid",
+            "naam",
+            "slug",
+            "aangemaakt_op",
+            "aangepast_op",
+            "verwijderd_op",
+        )
+        read_only_fields = (
+            "_links",
+            "uuid",
+            "slug",
+            "aangemaakt_op",
+            "aangepast_op",
+        )
 
 
 class MeldingLinksSerializer(serializers.Serializer):
@@ -53,6 +110,7 @@ class MeldingGebeurtenisStatusSerializer(WritableNestedModelSerializer):
     status = StatusSerializer(required=True)
     gebeurtenis_type = serializers.CharField(required=False)
     resolutie = serializers.CharField(required=False, allow_null=True)
+    specificatie = SpecificatieHyperlink(required=False)
 
     class Meta:
         model = Meldinggebeurtenis
@@ -62,6 +120,8 @@ class MeldingGebeurtenisStatusSerializer(WritableNestedModelSerializer):
             "bijlagen",
             "status",
             "resolutie",
+            "afhandelreden",
+            "specificatie",
             "omschrijving_intern",
             "omschrijving_extern",
             "melding",
@@ -296,6 +356,7 @@ class MeldingDetailSerializer(MeldingSerializer):
     signalen_voor_melding = SignaalSerializer(many=True, read_only=True)
     onderwerpen = OnderwerpBronUrlField(many=True, read_only=True)
     thumbnail_afbeelding = BijlageAlleenLezenSerializer(read_only=True)
+    specificatie = SpecificatieSerializer(required=False)
 
     class Meta:
         model = Melding
@@ -317,6 +378,8 @@ class MeldingDetailSerializer(MeldingSerializer):
             "locaties_voor_melding",
             "status",
             "resolutie",
+            "afhandelreden",
+            "specificatie",
             "meldinggebeurtenissen",
             "taakopdrachten_voor_melding",
             "signalen_voor_melding",

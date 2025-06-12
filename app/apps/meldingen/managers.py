@@ -198,7 +198,7 @@ class MeldingManager(models.Manager):
             )
 
     def status_aanpassen(self, serializer, melding, db="default", heropen=False):
-        from apps.meldingen.models import Melding, Meldinggebeurtenis
+        from apps.meldingen.models import Melding, Meldinggebeurtenis, ResolutieOpties
         from apps.taken.models import Taakgebeurtenis, Taakopdracht, Taakstatus
 
         with transaction.atomic():
@@ -215,7 +215,6 @@ class MeldingManager(models.Manager):
 
             vorige_status = locked_melding.status
 
-            resolutie = serializer.validated_data.pop("resolutie", None)
             melding_gebeurtenis = serializer.save()
 
             locked_melding.afgesloten_op = None
@@ -276,8 +275,12 @@ class MeldingManager(models.Manager):
 
                 locked_melding.afgesloten_op = timezone.now()
 
-            if resolutie in [ro[0] for ro in Melding.ResolutieOpties.choices]:
-                locked_melding.resolutie = resolutie
+            if melding_gebeurtenis.resolutie in [
+                ro[0] for ro in ResolutieOpties.choices
+            ]:
+                locked_melding.resolutie = melding_gebeurtenis.resolutie
+                locked_melding.afhandelreden = melding_gebeurtenis.afhandelreden
+                locked_melding.specificatie = melding_gebeurtenis.specificatie
             locked_melding.save()
 
             transaction.on_commit(

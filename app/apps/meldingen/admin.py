@@ -10,7 +10,7 @@ from apps.meldingen.admin_filters import (
     ThumbnailAfbeeldingFilter,
     ZoekTekstFilter,
 )
-from apps.meldingen.models import Melding, Meldinggebeurtenis
+from apps.meldingen.models import Melding, Meldinggebeurtenis, Specificatie
 from apps.meldingen.tasks import (
     task_bijlages_voor_geselecteerde_meldingen_opruimen,
     task_notificatie_voor_signaal_melding_afgesloten,
@@ -64,6 +64,13 @@ def action_vernieuw_melding_zoek_tekst_voor_melding_reeks(
 ):
     task_vernieuw_melding_zoek_tekst_voor_melding_reeks.delay(
         melding_ids=list(queryset.values_list("id", flat=True))
+    )
+
+
+class SpecificatieAdmin(admin.ModelAdmin):
+    list_display = (
+        "uuid",
+        "naam",
     )
 
 
@@ -216,3 +223,4 @@ class MeldinggebeurtenisAdmin(admin.ModelAdmin):
 
 admin.site.register(Meldinggebeurtenis, MeldinggebeurtenisAdmin)
 admin.site.register(Melding, MeldingAdmin)
+admin.site.register(Specificatie, SpecificatieAdmin)
