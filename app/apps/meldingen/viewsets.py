@@ -226,8 +226,9 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["patch"], url_path="status-aanpassen")
     def status_aanpassen(self, request, uuid):
         melding = self.get_object()
-        data = {"melding": melding.id}
+        data = {}
         data.update(request.data)
+        data["melding"] = melding.id
         data["status"]["melding"] = melding.id
         data["gebeurtenis_type"] = Meldinggebeurtenis.GebeurtenisType.STATUS_WIJZIGING
         serializer = MeldingGebeurtenisStatusSerializer(
