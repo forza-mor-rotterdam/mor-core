@@ -273,7 +273,10 @@ class MeldingManager(models.Manager):
                 ]
                 Meldinggebeurtenis.objects.bulk_create(meldinggebeurtenissen)
 
-                locked_melding.afgesloten_op = timezone.now()
+                afgesloten_op = timezone.now()
+                locked_melding.afgesloten_op = afgesloten_op
+                melding_gebeurtenis.aangemaakt_op = afgesloten_op
+                melding_gebeurtenis.save()
 
             if melding_gebeurtenis.resolutie in [
                 ro[0] for ro in ResolutieOpties.choices
