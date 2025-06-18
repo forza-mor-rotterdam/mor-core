@@ -337,8 +337,9 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["patch"], url_path="heropenen")
     def heropenen(self, request, uuid):
         melding = self.get_object()
-        data = {"melding": melding.id}
+        data = {}
         data.update(request.data)
+        data["melding"] = melding.id
         data["status"]["melding"] = melding.id
         data["gebeurtenis_type"] = Meldinggebeurtenis.GebeurtenisType.MELDING_HEROPEND
         serializer = MeldingGebeurtenisStatusSerializer(
@@ -366,8 +367,9 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["patch"], url_path="urgentie-aanpassen")
     def urgentie_aanpassen(self, request, uuid):
         melding = self.get_object()
-        data = {"melding": melding.id}
+        data = {}
         data.update(request.data)
+        data["melding"] = melding.id
         data["gebeurtenis_type"] = Meldinggebeurtenis.GebeurtenisType.URGENTIE_AANGEPAST
         serializer = MeldingGebeurtenisUrgentieSerializer(
             data=data,
