@@ -110,7 +110,7 @@ class MeldingGebeurtenisStatusSerializer(WritableNestedModelSerializer):
     status = StatusSerializer(required=True)
     gebeurtenis_type = serializers.CharField(required=False)
     resolutie = serializers.CharField(required=False, allow_null=True)
-    specificatie = SpecificatieHyperlink(required=False)
+    specificatie = SpecificatieHyperlink(required=False, allow_null=True)
 
     class Meta:
         model = Meldinggebeurtenis
