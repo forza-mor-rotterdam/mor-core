@@ -213,6 +213,10 @@ class MeldinggebeurtenisAdmin(admin.ModelAdmin):
         "signaal",
         "locatie",
     )
+    search_fields = [
+        "uuid",
+        "melding__uuid",
+    ]
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
