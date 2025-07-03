@@ -180,6 +180,7 @@ class MeldinggebeurtenisSerializer(WritableNestedModelSerializer):
             "gebruiker",
             "locatie",
             "urgentie",
+            "resolutie",
         )
         read_only_fields = (
             "_links",
@@ -190,6 +191,7 @@ class MeldinggebeurtenisSerializer(WritableNestedModelSerializer):
             "taakgebeurtenis",
             "locatie",
             "urgentie",
+            "resolutie",
         )
         validators = []
 
