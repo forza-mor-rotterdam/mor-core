@@ -48,6 +48,7 @@ class Meldinggebeurtenis(BasisModel):
         SIGNAAL_TOEGEVOEGD = "signaal_toegevoegd", "Signaal toegevoegd"
         URGENTIE_AANGEPAST = "urgentie_aangepast", "Urgentie aangepast"
         MELDING_HEROPEND = "melding_heropend", "Melding heropend"
+        MELDING_AFGEHANDELD = "melding_afgehandeld", "Melding afgehandeld"
 
     gebeurtenis_type = models.CharField(
         max_length=40,

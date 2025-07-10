@@ -9,6 +9,7 @@ from apps.meldingen.models import Melding, Meldinggebeurtenis, Specificatie
 from apps.meldingen.serializers import (
     MeldingAantallenSerializer,
     MeldingDetailSerializer,
+    MeldingGebeurtenisAfhandelenSerializer,
     MeldinggebeurtenisSerializer,
     MeldingGebeurtenisStatusSerializer,
     MeldingGebeurtenisUrgentieSerializer,
@@ -248,6 +249,48 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
     @extend_schema(
+        description="Melding afhandelen",
+        request=MeldingGebeurtenisAfhandelenSerializer,
+        responses={status.HTTP_200_OK: MeldingDetailSerializer},
+        parameters=None,
+    )
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="afhandelen",
+        name="afhandelen",
+        filter_backends=(),
+        pagination_class=None,
+        filterset_class=None,
+    )
+    def afhandelen(self, request, uuid):
+        melding = self.get_object()
+        if melding.afgesloten_op and melding.resolutie:
+            return Response(
+                data={"warning": f"Melding '{uuid}', is al afgesloten!"},
+            )
+        serializer = MeldingGebeurtenisAfhandelenSerializer(
+            data=request.data,
+            context={
+                "request": request,
+                "melding": melding,
+            },
+        )
+        if serializer.is_valid():
+            Melding.acties.status_aanpassen(serializer, self.get_object())
+            serializer = MeldingDetailSerializer(
+                self.get_object(),
+                context={
+                    "request": request,
+                },
+            )
+            return Response(serializer.data)
+        return Response(
+            data=serializer.errors,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    @extend_schema(
         description="Rapporteert dat een taak gewijzigd is aan de taakapplicatie kant. Geeft uitsluitend aan dat er een wijziging is. MorCore haalt de taak vervolgens op bij de taakapplicatie.",
         request=TaakopdrachtNotificatieSerializer,
         responses={status.HTTP_200_OK: TaakopdrachtNotificatieSerializer},
@@ -257,7 +300,6 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         detail=True,
         methods=["post"],
         url_path="taakopdracht/(?P<taakopdracht_uuid>[^/.]+)/notificatie",
-        permission_classes=(),
         name="taakopdracht-notificatie",
     )
     def taakopdracht_notificatie(self, request, uuid, taakopdracht_uuid):

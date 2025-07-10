@@ -111,6 +111,14 @@ services:
       - database
       - redis
 
+  rabbitmq:
+    image: rabbitmq
+    networks:
+      - mor_bridge_network
+    ports:
+      - 5672:5672
+
+
 volumes:
   postgres-data-16:
 
