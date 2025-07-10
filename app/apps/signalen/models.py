@@ -3,8 +3,11 @@ import logging
 from apps.applicaties.models import Applicatie
 from apps.bijlagen.models import Bijlage
 from apps.signalen.querysets import SignaalQuerySet
+from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.gis.db import models
+from django.contrib.sites.models import Site
+from rest_framework.reverse import reverse
 from utils.fields import DictJSONField, ListJSONField
 from utils.models import BasisModel
 
@@ -70,6 +73,15 @@ class Signaal(BasisModel):
         logger.warning(
             f"De notificatie naar de applicatie waar de melding vandaan komt, kon niet worden verstuurd: url={self.signaal_url}"
         )
+
+    def get_absolute_url(self):
+        domain = Site.objects.get_current().domain
+        url_basis = f"{settings.PROTOCOL}://{domain}{settings.PORT}"
+        pad = reverse(
+            "v1:signaal-detail",
+            kwargs={"uuid": self.uuid},
+        )
+        return f"{url_basis}{pad}"
 
     class Meta:
         verbose_name = "Signaal"

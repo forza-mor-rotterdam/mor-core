@@ -10,6 +10,7 @@ from apps.locatie.serializers import (
 )
 from apps.meldingen.models import Melding, Meldinggebeurtenis, Specificatie
 from apps.signalen.serializers import SignaalMeldingListSerializer, SignaalSerializer
+from apps.status.models import Status
 from apps.status.serializers import StatusSerializer
 from apps.taken.models import Taakgebeurtenis, Taakopdracht, Taakstatus
 from apps.taken.serializers import (
@@ -144,6 +145,37 @@ class MeldingGebeurtenisStatusSerializer(WritableNestedModelSerializer):
             "gebruiker",
         )
         read_only_fields = ("aangemaakt_op",)
+
+
+class MeldingGebeurtenisAfhandelenSerializer(serializers.ModelSerializer):
+    resolutie = serializers.CharField(required=True)
+    omschrijving_extern = serializers.CharField(required=True)
+    specificatie = SpecificatieHyperlink(required=False, allow_null=True)
+
+    def create(self, validated_data):
+        melding = self.context.get("melding")
+        validated_data["melding_id"] = melding.id
+        instance = super().create(validated_data)
+        instance.gebeurtenis_type = (
+            Meldinggebeurtenis.GebeurtenisType.MELDING_AFGEHANDELD
+        )
+        instance.status = Status.objects.create(
+            naam=Status.NaamOpties.AFGEHANDELD,
+            melding=melding,
+        )
+        instance.save()
+        return instance
+
+    class Meta:
+        model = Meldinggebeurtenis
+        fields = (
+            "resolutie",
+            "afhandelreden",
+            "specificatie",
+            "omschrijving_extern",
+            "omschrijving_intern",
+            "gebruiker",
+        )
 
 
 class MeldingGebeurtenisUrgentieSerializer(serializers.ModelSerializer):
