@@ -10,7 +10,7 @@ from apps.meldingen.admin_filters import (
     ThumbnailAfbeeldingFilter,
     ZoekTekstFilter,
 )
-from apps.meldingen.models import Melding, Meldinggebeurtenis
+from apps.meldingen.models import Melding, Meldinggebeurtenis, Specificatie
 from apps.meldingen.tasks import (
     task_bijlages_voor_geselecteerde_meldingen_opruimen,
     task_notificatie_voor_signaal_melding_afgesloten,
@@ -67,6 +67,13 @@ def action_vernieuw_melding_zoek_tekst_voor_melding_reeks(
     )
 
 
+class SpecificatieAdmin(admin.ModelAdmin):
+    list_display = (
+        "uuid",
+        "naam",
+    )
+
+
 class MeldingAdmin(admin.ModelAdmin):
     list_display = (
         "id",
@@ -74,13 +81,16 @@ class MeldingAdmin(admin.ModelAdmin):
         "thumbnail_afbeelding",
         "uuid",
         "urgentie",
+        "resolutie",
+        "afhandelreden",
+        "specificatie",
+        "afgesloten_op",
         "status_naam",
         "onderwerp_naam",
         "referentie_locatie",
         "origineel_aangemaakt",
         "aangemaakt_op",
         "aangepast_op",
-        "afgesloten_op",
         "zoek_tekst",
     )
     list_filter = (
@@ -203,6 +213,10 @@ class MeldinggebeurtenisAdmin(admin.ModelAdmin):
         "signaal",
         "locatie",
     )
+    search_fields = [
+        "uuid",
+        "melding__uuid",
+    ]
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -216,3 +230,4 @@ class MeldinggebeurtenisAdmin(admin.ModelAdmin):
 
 admin.site.register(Meldinggebeurtenis, MeldinggebeurtenisAdmin)
 admin.site.register(Melding, MeldingAdmin)
+admin.site.register(Specificatie, SpecificatieAdmin)

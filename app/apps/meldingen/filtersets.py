@@ -440,3 +440,17 @@ class TrigramSimilaritySearchFilter(SearchFilter):
         return queryset.annotate(similarity=Greatest(*conditions)).filter(
             similarity__gte=trigram_similarity
         )
+
+
+class SpecificatieFilterSet(filters.FilterSet):
+    naam = MultipleValueFilter(field_class=CharField, method="get_naam")
+    is_verwijderd = filters.BooleanFilter(
+        field_name="verwijderd_op", lookup_expr="isnull", exclude=True
+    )
+
+    def get_naam(self, queryset, name, value):
+        if value:
+            return queryset.filter(
+                naam__in=value,
+            )
+        return queryset

@@ -215,10 +215,12 @@ class MeldingManager(models.Manager):
 
             vorige_status = locked_melding.status
 
-            resolutie = serializer.validated_data.pop("resolutie", None)
             melding_gebeurtenis = serializer.save()
 
             locked_melding.afgesloten_op = None
+            locked_melding.resolutie = None
+            locked_melding.afhandelreden = None
+            locked_melding.specificatie = None
             locked_melding.status = melding_gebeurtenis.status
 
             locked_taakopdrachten = None
@@ -274,10 +276,16 @@ class MeldingManager(models.Manager):
                 ]
                 Meldinggebeurtenis.objects.bulk_create(meldinggebeurtenissen)
 
-                locked_melding.afgesloten_op = timezone.now()
+                afgesloten_op = timezone.now()
 
-            if resolutie in [ro[0] for ro in Melding.ResolutieOpties.choices]:
-                locked_melding.resolutie = resolutie
+                locked_melding.afgesloten_op = afgesloten_op
+                locked_melding.resolutie = melding_gebeurtenis.resolutie
+                locked_melding.afhandelreden = melding_gebeurtenis.afhandelreden
+                locked_melding.specificatie = melding_gebeurtenis.specificatie
+
+                melding_gebeurtenis.aangemaakt_op = afgesloten_op
+                melding_gebeurtenis.save()
+
             locked_melding.save()
 
             transaction.on_commit(

@@ -1,14 +1,20 @@
 import logging
 
-from apps.meldingen.filtersets import MeldingFilter, RelatedOrderingFilter
-from apps.meldingen.models import Melding, Meldinggebeurtenis
+from apps.meldingen.filtersets import (
+    MeldingFilter,
+    RelatedOrderingFilter,
+    SpecificatieFilterSet,
+)
+from apps.meldingen.models import Melding, Meldinggebeurtenis, Specificatie
 from apps.meldingen.serializers import (
     MeldingAantallenSerializer,
     MeldingDetailSerializer,
+    MeldingGebeurtenisAfhandelenSerializer,
     MeldinggebeurtenisSerializer,
     MeldingGebeurtenisStatusSerializer,
     MeldingGebeurtenisUrgentieSerializer,
     MeldingSerializer,
+    SpecificatieSerializer,
 )
 from apps.taken.serializers import (
     TaakopdrachtNotificatieSaveSerializer,
@@ -19,6 +25,7 @@ from apps.taken.serializers import (
 from config.context import db
 from django.conf import settings
 from django.http import Http404, JsonResponse
+from django.utils import timezone
 from django_filters import rest_framework as filters
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -149,12 +156,12 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         "-locaties_voor_melding__wijknaam",
         # "onderwerp",
         # "-onderwerp",
-        "locaties_voor_melding__vak",
-        "-locaties_voor_melding__vak",
-        "locaties_voor_melding__grafnummer",
-        "-locaties_voor_melding__grafnummer",
-        "locaties_voor_melding__begraafplaats",
-        "-locaties_voor_melding__begraafplaats",
+        "referentie_locatie__vak",
+        "-referentie_locatie__vak",
+        "referentie_locatie__grafnummer",
+        "-referentie_locatie__grafnummer",
+        "referentie_locatie__begraafplaats",
+        "-referentie_locatie__begraafplaats",
         "origineel_aangemaakt",
         "-origineel_aangemaakt",
         "status__naam",
@@ -206,7 +213,6 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
 
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
-            return super().list(request)
 
     def retrieve(self, request, uuid=None):
         with db(settings.READONLY_DATABASE_KEY):
@@ -221,8 +227,9 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["patch"], url_path="status-aanpassen")
     def status_aanpassen(self, request, uuid):
         melding = self.get_object()
-        data = {"melding": melding.id}
+        data = {}
         data.update(request.data)
+        data["melding"] = melding.id
         data["status"]["melding"] = melding.id
         data["gebeurtenis_type"] = Meldinggebeurtenis.GebeurtenisType.STATUS_WIJZIGING
         serializer = MeldingGebeurtenisStatusSerializer(
@@ -235,7 +242,48 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
             serializer = MeldingDetailSerializer(
                 self.get_object(), context={"request": request}
             )
+            return Response(serializer.data)
+        return Response(
+            data=serializer.errors,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
+    @extend_schema(
+        description="Melding afhandelen",
+        request=MeldingGebeurtenisAfhandelenSerializer,
+        responses={status.HTTP_200_OK: MeldingDetailSerializer},
+        parameters=None,
+    )
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="afhandelen",
+        name="afhandelen",
+        filter_backends=(),
+        pagination_class=None,
+        filterset_class=None,
+    )
+    def afhandelen(self, request, uuid):
+        melding = self.get_object()
+        if melding.afgesloten_op and melding.resolutie:
+            return Response(
+                data={"warning": f"Melding '{uuid}', is al afgesloten!"},
+            )
+        serializer = MeldingGebeurtenisAfhandelenSerializer(
+            data=request.data,
+            context={
+                "request": request,
+                "melding": melding,
+            },
+        )
+        if serializer.is_valid():
+            Melding.acties.status_aanpassen(serializer, self.get_object())
+            serializer = MeldingDetailSerializer(
+                self.get_object(),
+                context={
+                    "request": request,
+                },
+            )
             return Response(serializer.data)
         return Response(
             data=serializer.errors,
@@ -252,7 +300,6 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         detail=True,
         methods=["post"],
         url_path="taakopdracht/(?P<taakopdracht_uuid>[^/.]+)/notificatie",
-        permission_classes=(),
         name="taakopdracht-notificatie",
     )
     def taakopdracht_notificatie(self, request, uuid, taakopdracht_uuid):
@@ -332,8 +379,9 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["patch"], url_path="heropenen")
     def heropenen(self, request, uuid):
         melding = self.get_object()
-        data = {"melding": melding.id}
+        data = {}
         data.update(request.data)
+        data["melding"] = melding.id
         data["status"]["melding"] = melding.id
         data["gebeurtenis_type"] = Meldinggebeurtenis.GebeurtenisType.MELDING_HEROPEND
         serializer = MeldingGebeurtenisStatusSerializer(
@@ -361,8 +409,9 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["patch"], url_path="urgentie-aanpassen")
     def urgentie_aanpassen(self, request, uuid):
         melding = self.get_object()
-        data = {"melding": melding.id}
+        data = {}
         data.update(request.data)
+        data["melding"] = melding.id
         data["gebeurtenis_type"] = Meldinggebeurtenis.GebeurtenisType.URGENTIE_AANGEPAST
         serializer = MeldingGebeurtenisUrgentieSerializer(
             data=data,
@@ -505,3 +554,22 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
                 many=True,
             )
         return Response(serializer.data)
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter("naam", OpenApiTypes.STR, OpenApiParameter.QUERY),
+    ]
+)
+class SpecificatieViewSet(viewsets.ModelViewSet):
+    lookup_field = "uuid"
+    queryset = Specificatie.objects.all()
+    serializer_class = SpecificatieSerializer
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = SpecificatieFilterSet
+
+    def destroy(self, request, *args, **kwargs):
+        specificatie = self.get_object()
+        specificatie.verwijderd_op = timezone.now()
+        specificatie.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
