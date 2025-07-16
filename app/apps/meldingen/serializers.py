@@ -18,6 +18,9 @@ from apps.taken.serializers import (
     TaakgebeurtenisSerializer,
     TaakopdrachtSerializer,
 )
+from django.conf import settings
+from django.contrib.sites.models import Site
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from drf_writable_nested.serializers import WritableNestedModelSerializer
@@ -478,3 +481,87 @@ class MeldingAantallenSerializer(serializers.Serializer):
     count = serializers.IntegerField()
     wijk = serializers.CharField()
     onderwerp = serializers.CharField(source="onderwerp_naam")
+
+
+class ProducerMessageMetaSerializer(serializers.Serializer):
+    created = serializers.DateTimeField()
+    publisher = serializers.URLField()
+
+
+class ProducerMessageEventSerializer(serializers.Serializer):
+    entity = serializers.CharField()
+    uuid = serializers.UUIDField()
+    action = serializers.CharField()
+
+
+class ProducerMessageLinksSerializer(serializers.Serializer):
+    melding = serializers.SerializerMethodField()
+
+    @extend_schema_field(LinkSerializer())
+    def get_melding(self, obj):
+        serializer = LinkSerializer({"href": obj["melding"].get_absolute_url()})
+        return serializer.data
+
+
+class ProducerMessageMeldingLinksSerializer(ProducerMessageLinksSerializer):
+    onderwerp = serializers.SerializerMethodField()
+    signalen = serializers.SerializerMethodField()
+
+    @extend_schema_field(LinkSerializer())
+    def get_onderwerp(self, obj):
+        serializer = LinkSerializer({"href": obj["onderwerp"].bron_url})
+        return serializer.data
+
+    @extend_schema_field(LinkSerializer(many=True))
+    def get_signalen(self, obj):
+        return [
+            LinkSerializer({"href": signaal.get_absolute_url()}).data
+            for signaal in obj.get("signalen", [])
+        ]
+
+
+class ProducerMessageTaakopdrachtLinksSerializer(ProducerMessageLinksSerializer):
+    taakopdracht = serializers.SerializerMethodField()
+    taaktype = serializers.SerializerMethodField()
+
+    @extend_schema_field(LinkSerializer())
+    def get_taakopdracht(self, obj):
+        serializer = LinkSerializer({"href": obj["taakopdracht"].get_absolute_url()})
+        return serializer.data
+
+    @extend_schema_field(LinkSerializer())
+    def get_taaktype(self, obj):
+        serializer = LinkSerializer({"href": obj["taakopdracht"].taaktype})
+        return serializer.data
+
+
+class ProducerMessageMeldingTaakopdrachtLinksSerializer(
+    ProducerMessageTaakopdrachtLinksSerializer, ProducerMessageMeldingLinksSerializer
+):
+    ...
+
+
+class ProducerMessageSerializer(serializers.Serializer):
+    meta = serializers.SerializerMethodField()
+    event = ProducerMessageEventSerializer(source="*")
+    data = serializers.Serializer()
+
+    @extend_schema_field(ProducerMessageMetaSerializer())
+    def get_meta(self, obj):
+        domain = Site.objects.get_current().domain
+        return {
+            "created": timezone.now().isoformat(),
+            "publisher": f"{settings.PROTOCOL}://{domain}{settings.PORT}",
+        }
+
+
+class ProducerMessageMeldingSerializer(ProducerMessageSerializer):
+    _links = ProducerMessageMeldingLinksSerializer(source="*")
+
+
+class ProducerMessageTaakopdrachtSerializer(ProducerMessageSerializer):
+    _links = ProducerMessageTaakopdrachtLinksSerializer(source="*")
+
+
+class ProducerMessageMeldingTaakopdrachtSerializer(ProducerMessageSerializer):
+    _links = ProducerMessageMeldingTaakopdrachtLinksSerializer(source="*")

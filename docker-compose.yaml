@@ -115,6 +115,9 @@ services:
     image: rabbitmq
     networks:
       - mor_bridge_network
+    volumes:
+      - ./rabbitmq/definitions.json:/tmp/rabbit.definitions.json
+      - ./rabbitmq/rabbitmq-env.conf:/etc/rabbitmq/conf.d/30-rabbitmq-env.conf
     ports:
       - 5672:5672
 
