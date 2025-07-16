@@ -12,6 +12,10 @@ from apps.meldingen.managers import (
     urgentie_aangepast,
     verwijderd,
 )
+from apps.meldingen.producers import (
+    TaakopdrachtAangemaaktProducer,
+    TaakopdrachtVeranderdProducer,
+)
 from apps.meldingen.tasks import (
     task_bijlages_voor_geselecteerde_meldingen_opruimen,
     task_notificatie_voor_signaal_melding_afgesloten,
@@ -150,6 +154,11 @@ def taakopdracht_aangemaakt_handler(
         taakgebeurtenis_id=taakgebeurtenis.id,
     )
 
+    taakopdracht_aangemaakt_producer = TaakopdrachtAangemaaktProducer()
+    taakopdracht_veranderd_producer = TaakopdrachtVeranderdProducer()
+    taakopdracht_aangemaakt_producer.publish(melding, taakgebeurtenis)
+    taakopdracht_veranderd_producer.publish(melding, taakgebeurtenis)
+
 
 @receiver(taakopdracht_notificatie, dispatch_uid="taakopdracht_notificatie")
 def taakopdracht_status_aangepast_handler(
@@ -167,6 +176,9 @@ def taakopdracht_status_aangepast_handler(
         notificatie_type="taakopdracht_notificatie",
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
+
+    taakopdracht_veranderd_producer = TaakopdrachtVeranderdProducer()
+    taakopdracht_veranderd_producer.publish(melding, taakgebeurtenis)
 
 
 @receiver(taakopdracht_verwijderd, dispatch_uid="taakopdracht_verwijderd")

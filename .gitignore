@@ -12,3 +12,4 @@
 media/**/*
 !.gitkeep
 app/*.log
+**/.python_history
