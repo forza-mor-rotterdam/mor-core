@@ -298,8 +298,8 @@ class MeldingManager(models.Manager):
                 )
             )
 
-    def gebeurtenis_toevoegen(self, serializer, melding, db="default"):
-        from apps.meldingen.models import Melding
+    def gebeurtenis_toevoegen(self, serializer, melding, db="default", gebeurtenis_type=None):
+        from apps.meldingen.models import Melding, Meldinggebeurtenis
 
         if melding.afgesloten_op:
             raise MeldingManager.MeldingAfgeslotenFout(
@@ -324,6 +324,9 @@ class MeldingManager(models.Manager):
             meldinggebeurtenis = serializer.save(
                 melding=locked_melding, locatie=locatie
             )
+            if gebeurtenis_type != None:
+                meldinggebeurtenis.gebeurtenis_type = gebeurtenis_type
+                Meldinggebeurtenis.save(meldinggebeurtenis)
 
             if meldinggebeurtenis.locatie or (
                 not locked_melding.thumbnail_afbeelding and meldinggebeurtenis.bijlagen
