@@ -298,7 +298,9 @@ class MeldingManager(models.Manager):
                 )
             )
 
-    def gebeurtenis_toevoegen(self, serializer, melding, db="default", gebeurtenis_type=None):
+    def gebeurtenis_toevoegen(
+        self, serializer, melding, db="default", gebeurtenis_type=None
+    ):
         from apps.meldingen.models import Melding, Meldinggebeurtenis
 
         if melding.afgesloten_op:

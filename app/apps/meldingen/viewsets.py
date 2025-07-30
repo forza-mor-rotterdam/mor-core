@@ -513,7 +513,11 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         )
         try:
             serializer.is_valid(raise_exception=True)
-            Melding.acties.gebeurtenis_toevoegen(serializer, self.get_object(), gebeurtenis_type=Meldinggebeurtenis.GebeurtenisType.LOCATIE_AANGEMAAKT)
+            Melding.acties.gebeurtenis_toevoegen(
+                serializer,
+                self.get_object(),
+                gebeurtenis_type=Meldinggebeurtenis.GebeurtenisType.LOCATIE_AANGEMAAKT,
+            )
 
             serializer_data = MeldingDetailSerializer(
                 self.get_object(), context={"request": request}
