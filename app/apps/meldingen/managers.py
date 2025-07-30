@@ -324,7 +324,7 @@ class MeldingManager(models.Manager):
             meldinggebeurtenis = serializer.save(
                 melding=locked_melding, locatie=locatie
             )
-            if gebeurtenis_type != None:
+            if gebeurtenis_type is not None:
                 meldinggebeurtenis.gebeurtenis_type = gebeurtenis_type
                 Meldinggebeurtenis.save(meldinggebeurtenis)
 
