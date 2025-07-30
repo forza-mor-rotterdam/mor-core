@@ -303,7 +303,7 @@ class MeldingManager(models.Manager):
 
         if melding.afgesloten_op:
             raise MeldingManager.MeldingAfgeslotenFout(
-                f"Voor een afgsloten melding kunnen geen gebeurtenissen worden aangemaakt. melding nummer: {melding.id}, melding uuid: {melding.uuid}"
+                f"Voor een afgesloten melding kunnen geen gebeurtenissen worden aangemaakt. melding nummer: {melding.id}, melding uuid: {melding.uuid}"
             )
 
         with transaction.atomic():
