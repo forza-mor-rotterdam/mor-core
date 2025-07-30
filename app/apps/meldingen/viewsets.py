@@ -507,7 +507,7 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
     def locatie_aanmaken(self, request, uuid):
         data = request.data
         data["gebeurtenis_type"] = Meldinggebeurtenis.GebeurtenisType.LOCATIE_AANGEMAAKT
-        
+
         serializer = self.serializer_class(
             data=data,
             context={"request": request},
