@@ -96,8 +96,8 @@ class CustomCollector(object):
         # Meldingen metrics
         yield self.collect_melding_metrics()
 
-        # Signalen metrics
-        yield self.collect_signalen_metrics()
+        # # Signalen metrics
+        # yield self.collect_signalen_metrics()
 
         # Taak total metrics
         yield self.collect_taak_metrics()
