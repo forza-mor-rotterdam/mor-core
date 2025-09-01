@@ -59,13 +59,20 @@ class LocatieAdmin(admin.ModelAdmin):
         "postcode",
         "straatnaam",
         "geometrie",
-        "gebruiker",
+        "locatie_zoek_field",
     )
     search_fields = [
         "id",
+        "uuid",
         "melding__uuid",
+        "signaal__uuid",
     ]
     list_filter = ("primair",)
+    readonly_fields = (
+        "uuid",
+        "aangemaakt_op",
+        "aangepast_op",
+    )
 
     # TODO: Remove later!!!
     formfield_overrides = {
@@ -74,7 +81,6 @@ class LocatieAdmin(admin.ModelAdmin):
     raw_id_fields = (
         "melding",
         "signaal",
-        "gebruiker",
     )
 
     def get_queryset(self, request):

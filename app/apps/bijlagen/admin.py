@@ -35,11 +35,17 @@ class BijlageAdmin(admin.ModelAdmin):
         action_aanmaken_afbeelding_versies,
         action_bijlage_opruimen,
     )
+    readonly_fields = (
+        "uuid",
+        "aangemaakt_op",
+        "aangepast_op",
+    )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.prefetch_related(
             "content_object",
+            "content_type",
         )
 
 

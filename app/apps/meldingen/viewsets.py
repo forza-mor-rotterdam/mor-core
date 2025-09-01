@@ -334,6 +334,8 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         )
         if serializer.is_valid():
             Melding.acties.taakopdracht_notificatie(taakopdracht, data)
+            return Response({})
+
         logger.warning(
             f"taakopdracht_notificatie: serializer.errors={serializer.errors}"
         )

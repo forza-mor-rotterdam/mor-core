@@ -12,6 +12,7 @@ class SignaalAdmin(admin.ModelAdmin):
         "signaal_url",
         "bijlage_aantal",
         "aangemaakt_op",
+        "aangepast_op",
         "bron_id",
         "bron_signaal_id",
         "melding",
@@ -56,7 +57,7 @@ class SignaalAdmin(admin.ModelAdmin):
         return qs.select_related(
             "melding",
             "melder",
-        )
+        ).prefetch_related("bijlagen")
 
 
 admin.site.register(Signaal, SignaalAdmin)
