@@ -65,6 +65,7 @@ class TaakgebeurtenisAdmin(admin.ModelAdmin):
         "verwijderd_op",
         "taakstatus",
         "resolutie",
+        "omschrijving_intern",
         "aangemaakt_op",
         "aangepast_op",
         "taakopdracht",

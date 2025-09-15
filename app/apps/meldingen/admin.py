@@ -221,9 +221,11 @@ class MeldinggebeurtenisAdmin(admin.ModelAdmin):
         "aangemaakt_op",
         "melding",
         "omschrijving_extern",
+        "omschrijving_intern",
         "taakopdracht",
         "taakgebeurtenis",
         "signaal",
+        "gebruiker",
     )
     raw_id_fields = (
         "status",
