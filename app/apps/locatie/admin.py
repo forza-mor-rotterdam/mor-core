@@ -51,7 +51,9 @@ class LocatieAdmin(admin.ModelAdmin):
         "aangemaakt_op",
         "begraafplaats",
         "melding",
+        "buurtnaam",
         "wijknaam",
+        "plaatsnaam",
         "gewicht",
         "primair",
         "signaal",
@@ -67,7 +69,7 @@ class LocatieAdmin(admin.ModelAdmin):
         "melding__uuid",
         "signaal__uuid",
     ]
-    list_filter = ("primair",)
+    list_filter = ("primair", "plaatsnaam")
     readonly_fields = (
         "uuid",
         "aangemaakt_op",
