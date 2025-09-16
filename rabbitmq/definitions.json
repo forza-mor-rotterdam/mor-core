@@ -32,7 +32,7 @@
             "arguments": {},
             "auto_delete": false,
             "durable": false,
-            "name": "mor_core",
+            "name": "morcore",
             "type": "topic",
             "vhost": "/"
         }
