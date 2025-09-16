@@ -15,7 +15,7 @@ class BasisProducer:
     def __init__(self) -> None:
         self.channel = None
         self.MESSAGE_BUS_URL = os.getenv("MESSAGE_BUS_URL")
-        self.MESSAGE_EXCHANGE = os.getenv("MESSAGE_EXCHANGE", "mor_core")
+        self.MESSAGE_EXCHANGE = os.getenv("MESSAGE_EXCHANGE", "morcore")
         if not self.MESSAGE_BUS_URL or not self.MESSAGE_EXCHANGE:
             logger.error(
                 f"MESSAGE_BUS_URL en/of MESSAGE_EXCHANGE zijn niet gezet: MESSAGE_BUS_URL={self.MESSAGE_EXCHANGE}, MESSAGE_BUS_URL={self.MESSAGE_EXCHANGE}"
