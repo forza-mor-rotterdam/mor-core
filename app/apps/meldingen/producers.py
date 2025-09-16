@@ -14,21 +14,21 @@ logger = logging.getLogger(__name__)
 class BasisProducer:
     def __init__(self) -> None:
         self.channel = None
-        self.RABBITMQ_URL = os.getenv("RABBITMQ_URL")
-        self.RABBITMQ_EXCHANGE = os.getenv("RABBITMQ_EXCHANGE")
-        if not self.RABBITMQ_URL or not self.RABBITMQ_EXCHANGE:
+        self.MESSAGE_BUS_URL = os.getenv("MESSAGE_BUS_URL")
+        self.MESSAGE_EXCHANGE = os.getenv("MESSAGE_EXCHANGE", "mor_core")
+        if not self.MESSAGE_BUS_URL or not self.MESSAGE_EXCHANGE:
             logger.error(
-                f"RABBITMQ_URL en/of RABBITMQ_EXCHANGE zijn niet gezet: RABBITMQ_URL={self.RABBITMQ_EXCHANGE}, RABBITMQ_URL={self.RABBITMQ_EXCHANGE}"
+                f"MESSAGE_BUS_URL en/of MESSAGE_EXCHANGE zijn niet gezet: MESSAGE_BUS_URL={self.MESSAGE_EXCHANGE}, MESSAGE_BUS_URL={self.MESSAGE_EXCHANGE}"
             )
             return
         try:
             connection = pika.BlockingConnection(
-                pika.connection.URLParameters(self.RABBITMQ_URL)
+                pika.connection.URLParameters(self.MESSAGE_BUS_URL)
             )
             self.channel = connection.channel()
         except Exception:
             logger.error(
-                f"Er ging iets mis met het opzetten van de rabbitmq verbinding: RABBITMQ_URL={self.RABBITMQ_URL}"
+                f"Er ging iets mis met het opzetten van de rabbitmq verbinding: MESSAGE_BUS_URL={self.MESSAGE_BUS_URL}"
             )
             return
 
@@ -37,11 +37,11 @@ class BasisProducer:
             return
         try:
             self.channel.basic_publish(
-                exchange=self.RABBITMQ_EXCHANGE, routing_key=routing_key, body=data
+                exchange=self.MESSAGE_EXCHANGE, routing_key=routing_key, body=data
             )
         except Exception:
             logger.error(
-                f"Er ging iets mis met het publiseren van de message: RABBITMQ_EXCHANGE={self.RABBITMQ_EXCHANGE}, routing_key={routing_key}, body={data}"
+                f"Er ging iets mis met het publiseren van de message: MESSAGE_EXCHANGE={self.MESSAGE_EXCHANGE}, routing_key={routing_key}, body={data}"
             )
             return
 
