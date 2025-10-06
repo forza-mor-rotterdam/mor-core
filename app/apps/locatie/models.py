@@ -73,13 +73,6 @@ class Locatie(BasisModel):
     begraafplaats = models.CharField(max_length=50, null=True, blank=True)
     grafnummer = models.CharField(max_length=10, null=True, blank=True)
     vak = models.CharField(max_length=10, null=True, blank=True)
-    gebruiker = models.ForeignKey(
-        to="authenticatie.Gebruiker",
-        related_name="locatie_voor_gebruiker",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-    )
     gewicht = models.FloatField(default=0.2)
     primair = models.BooleanField(default=False)
 
@@ -104,6 +97,9 @@ class Locatie(BasisModel):
             ),
             models.Index(fields=["buurtnaam"], name="buurtnaam_idx"),
             models.Index(fields=["wijknaam"], name="wijknaam_idx"),
+            models.Index(fields=["begraafplaats"], name="begraafplaats_idx"),
+            models.Index(fields=["grafnummer"], name="grafnummer_idx"),
+            models.Index(fields=["vak"], name="vak"),
         ]
 
 

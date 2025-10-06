@@ -50,6 +50,12 @@ class TaakstatusAdmin(admin.ModelAdmin):
         "naam",
         "taakopdracht",
     )
+    raw_id_fields = ("taakopdracht",)
+    readonly_fields = (
+        "uuid",
+        "aangemaakt_op",
+        "aangepast_op",
+    )
 
 
 class TaakgebeurtenisAdmin(admin.ModelAdmin):
@@ -59,6 +65,7 @@ class TaakgebeurtenisAdmin(admin.ModelAdmin):
         "verwijderd_op",
         "taakstatus",
         "resolutie",
+        "omschrijving_intern",
         "aangemaakt_op",
         "aangepast_op",
         "taakopdracht",
@@ -70,6 +77,11 @@ class TaakgebeurtenisAdmin(admin.ModelAdmin):
     raw_id_fields = (
         "taakstatus",
         "taakopdracht",
+    )
+    readonly_fields = (
+        "uuid",
+        "aangemaakt_op",
+        "aangepast_op",
     )
     search_fields = ("taakopdracht__melding__uuid", "taakopdracht__uuid", "uuid")
     date_hierarchy = "aangemaakt_op"
@@ -258,7 +270,7 @@ class CustomTaskResultAdmin(TaskResultAdmin):
         "status",
         "date_created",
         "date_done",
-        "periodic_task_name",
+        # "periodic_task_name",
         "task_name",
     )
     actions = [

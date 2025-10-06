@@ -12,7 +12,16 @@ class StatusAdmin(admin.ModelAdmin):
         "melding",
     )
     raw_id_fields = ("melding",)
-    search_fields = ("melding__id",)
+    search_fields = (
+        "uuid",
+        "melding__id",
+        "melding__uuid",
+    )
+    readonly_fields = (
+        "uuid",
+        "aangemaakt_op",
+        "aangepast_op",
+    )
 
     def aangemaakt_op_ts(self, obj):
         return obj.aangemaakt_op.timestamp()

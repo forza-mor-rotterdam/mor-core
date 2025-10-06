@@ -45,6 +45,17 @@ class OnderwerpAliasAdmin(admin.ModelAdmin):
         "aantal_signalen",
     )
 
+    search_fields = (
+        "uuid",
+        "meldingen_voor_onderwerpen__uuid",
+        "signalen_voor_onderwerpen__uuid",
+    )
+    readonly_fields = (
+        "uuid",
+        "aangemaakt_op",
+        "aangepast_op",
+    )
+
     actions = (action_link_meldingen_aan_valide_onderwerp,)
 
     def naam(self, obj):
@@ -59,6 +70,13 @@ class OnderwerpAliasAdmin(admin.ModelAdmin):
     naam.short_description = "Naam"
     aantal_meldingen.short_description = "Aantal meldingen"
     aantal_signalen.short_description = "Aantal signalen"
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.prefetch_related(
+            "signalen_voor_onderwerpen",
+            "meldingen_voor_onderwerpen",
+        )
 
 
 admin.site.register(OnderwerpAlias, OnderwerpAliasAdmin)

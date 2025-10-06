@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 import pika
@@ -7,18 +8,42 @@ from apps.meldingen.serializers import (
     ProducerMessageTaakopdrachtSerializer,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class BasisProducer:
     def __init__(self) -> None:
-        connection = pika.BlockingConnection(
-            pika.connection.URLParameters(os.getenv("RABBITMQ_URL"))
-        )
-        self.channel = connection.channel()
+        self.channel = None
+        self.MESSAGE_BUS_URL = os.getenv("MESSAGE_BUS_URL")
+        self.MESSAGE_EXCHANGE = os.getenv("MESSAGE_EXCHANGE", "morcore")
+        if not self.MESSAGE_BUS_URL or not self.MESSAGE_EXCHANGE:
+            logger.error(
+                f"MESSAGE_BUS_URL en/of MESSAGE_EXCHANGE zijn niet gezet: MESSAGE_BUS_URL={self.MESSAGE_EXCHANGE}, MESSAGE_BUS_URL={self.MESSAGE_EXCHANGE}"
+            )
+            return
+        try:
+            connection = pika.BlockingConnection(
+                pika.connection.URLParameters(self.MESSAGE_BUS_URL)
+            )
+            self.channel = connection.channel()
+        except Exception:
+            logger.error(
+                f"Er ging iets mis met het opzetten van de rabbitmq verbinding: MESSAGE_BUS_URL={self.MESSAGE_BUS_URL}"
+            )
+            return
 
     def _publish(self, routing_key, data):
-        self.channel.basic_publish(
-            exchange=os.getenv("RABBITMQ_EXCHANGE"), routing_key=routing_key, body=data
-        )
+        if not self.channel:
+            return
+        try:
+            self.channel.basic_publish(
+                exchange=self.MESSAGE_EXCHANGE, routing_key=routing_key, body=data
+            )
+        except Exception:
+            logger.error(
+                f"Er ging iets mis met het publiseren van de message: MESSAGE_EXCHANGE={self.MESSAGE_EXCHANGE}, routing_key={routing_key}, body={data}"
+            )
+            return
 
 
 class TaakopdrachtAangemaaktProducer(BasisProducer):

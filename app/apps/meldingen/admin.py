@@ -71,7 +71,17 @@ class SpecificatieAdmin(admin.ModelAdmin):
     list_display = (
         "uuid",
         "naam",
+        "aantal_meldingen",
     )
+    search_fields = [
+        "uuid",
+        "meldingen_voor_specificatie__uuid",
+    ]
+
+    def aantal_meldingen(self, obj):
+        return obj.meldingen_voor_specificatie.count()
+
+    aantal_meldingen.short_description = "Aantal meldingen"
 
 
 class MeldingAdmin(admin.ModelAdmin):
@@ -94,6 +104,8 @@ class MeldingAdmin(admin.ModelAdmin):
         "zoek_tekst",
     )
     list_filter = (
+        "specificatie",
+        "afhandelreden",
         ThumbnailAfbeeldingFilter,
         ReferentieLocatieFilter,
         ZoekTekstFilter,
@@ -114,7 +126,12 @@ class MeldingAdmin(admin.ModelAdmin):
         "afgesloten_op",
         "origineel_aangemaakt",
     )
-    raw_id_fields = ("status", "referentie_locatie", "thumbnail_afbeelding")
+    raw_id_fields = (
+        "status",
+        "referentie_locatie",
+        "thumbnail_afbeelding",
+        "specificatie",
+    )
     fieldsets = (
         (
             None,
@@ -124,6 +141,8 @@ class MeldingAdmin(admin.ModelAdmin):
                     "urgentie",
                     "status",
                     "resolutie",
+                    "afhandelreden",
+                    "specificatie",
                     "onderwerpen",
                     "referentie_locatie",
                 )
@@ -202,26 +221,44 @@ class MeldinggebeurtenisAdmin(admin.ModelAdmin):
         "aangemaakt_op",
         "melding",
         "omschrijving_extern",
+        "omschrijving_intern",
         "taakopdracht",
         "taakgebeurtenis",
         "signaal",
+        "gebruiker",
     )
     raw_id_fields = (
+        "status",
+        "specificatie",
         "melding",
         "taakopdracht",
         "taakgebeurtenis",
         "signaal",
         "locatie",
     )
-    search_fields = [
+    search_fields = (
         "uuid",
+        "status__uuid",
+        "specificatie__uuid",
+        "signaal__uuid",
+        "locatie__uuid",
         "melding__uuid",
-    ]
+        "taakopdracht__uuid",
+        "taakgebeurtenis__uuid",
+    )
+    readonly_fields = (
+        "uuid",
+        "aangemaakt_op",
+        "aangepast_op",
+    )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related(
+            "status",
+            "locatie",
             "signaal",
+            "specificatie",
             "melding",
             "taakopdracht",
             "taakgebeurtenis",
