@@ -24,9 +24,11 @@ from apps.meldingen.tasks import (
 )
 from apps.status.models import Status
 from apps.taken.models import Taakgebeurtenis
-from apps.taken.tasks import task_taak_aanmaken, task_taak_verwijderen
-from celery import chord
+from apps.taken.tasks import task_taak_verwijderen
+from celery import chord, states
+from celery.signals import before_task_publish
 from django.dispatch import receiver
+from django_celery_results.models import TaskResult
 
 logger = logging.getLogger(__name__)
 
@@ -150,9 +152,10 @@ def taakopdracht_aangemaakt_handler(
         melding_url=melding.get_absolute_url(),
         notificatie_type="taakopdracht_aangemaakt",
     )
-    task_taak_aanmaken.delay(
-        taakgebeurtenis_id=taakgebeurtenis.id,
-    )
+
+    # taak aanmaken task aanmaken en Taskresult db instance relateren aan taakopdracht instance
+    taakopdracht.task_taak_aanmaken = taakopdracht.get_task_taak_aanmaken()
+    taakopdracht.save(update_fields=["task_taak_aanmaken"])
 
     taakopdracht_aangemaakt_producer = TaakopdrachtAangemaaktProducer()
     taakopdracht_veranderd_producer = TaakopdrachtVeranderdProducer()
@@ -189,4 +192,21 @@ def taakopdracht_verwijderd_handler(
         return
     task_taak_verwijderen.delay(
         taakopdracht_id=taakopdracht.id,
+    )
+
+
+@before_task_publish.connect
+def create_task_result_on_publish(sender=None, headers=None, body=None, **kwargs):
+    if "task" not in headers:
+        return
+
+    TaskResult.objects.store_result(
+        "application/json",
+        "utf-8",
+        headers["id"],
+        None,
+        states.PENDING,
+        task_name=headers["task"],
+        task_args=headers["argsrepr"],
+        task_kwargs=headers["kwargsrepr"],
     )

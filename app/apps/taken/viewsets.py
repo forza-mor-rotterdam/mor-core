@@ -1,15 +1,21 @@
+import uuid
+
 from apps.meldingen.models import Melding
 from apps.taken.filtersets import TaakopdrachtFilter
 from apps.taken.models import Taakgebeurtenis, Taakopdracht
 from apps.taken.serializers import (
     TaakgebeurtenisSerializer,
     TaakgebeurtenisStatusSerializer,
+    TaakopdrachtHerstartTaskTaakAanmakenSerializer,
+    TaakopdrachtListSerializer,
     TaakopdrachtSerializer,
     TaakopdrachtVerwijderenSerializer,
     TaaktypeAantallenSerializer,
 )
+from celery import states
 from config.context import db
 from django.conf import settings
+from django.db.models import Q
 from django_filters import rest_framework as filters
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -40,12 +46,30 @@ class TaakopdrachtViewSet(
     """
 
     lookup_field = "uuid"
-    queryset = Taakopdracht.objects.all()
 
-    serializer_class = TaakopdrachtSerializer
+    queryset = (
+        Taakopdracht.objects.select_related(
+            "melding",
+            "status",
+            "task_taak_aanmaken",
+            "applicatie",
+        )
+        .prefetch_related(
+            "taakstatussen_voor_taakopdracht",
+        )
+        .all()
+    )
+
+    serializer_class = TaakopdrachtListSerializer
+    serializer_detail_class = TaakopdrachtSerializer
 
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_class = TaakopdrachtFilter
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return self.serializer_detail_class
+        return super().get_serializer_class()
 
     @extend_schema(
         description="Verander de status van een taak",
@@ -100,6 +124,47 @@ class TaakopdrachtViewSet(
             taakgebeurtenis, context={"request": request}
         )
         return Response(serializer.data)
+
+    @extend_schema(
+        description="Herstart task voor het aanmaken van de taak in de taakapplicatie",
+        responses={
+            status.HTTP_200_OK: TaakopdrachtHerstartTaskTaakAanmakenSerializer()
+        },
+    )
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="herstart-task-taak-aanmaken",
+        serializer_class=TaakopdrachtHerstartTaskTaakAanmakenSerializer,
+    )
+    def herstart_task_taak_aanmaken(self, request):
+        uuids = [
+            uuid.UUID(str_uuid) for str_uuid in request.data.get("taakopdrachten", [])
+        ]
+        taakopdrachten = Taakopdracht.objects.filter(
+            uuid__in=uuids,
+            taak_url__isnull=True,
+        )
+
+        taakopdrachten = taakopdrachten.filter(
+            Q(
+                task_taak_aanmaken__isnull=True,
+            )
+            | Q(
+                task_taak_aanmaken__isnull=False,
+                task_taak_aanmaken__status=states.FAILURE,
+            )
+        )
+        taakopdrachten_herstart = []
+        for taakopdracht in taakopdrachten:
+            taakopdrachten_herstart.append(str(taakopdracht.uuid))
+            taakopdracht.herstart_task_taak_aanmaken()
+
+        return Response(
+            {
+                "taakopdrachten": taakopdrachten_herstart,
+            }
+        )
 
     @extend_schema(
         description="Taaktype aantallen per melding",
