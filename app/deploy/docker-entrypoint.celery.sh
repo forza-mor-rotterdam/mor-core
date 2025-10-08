@@ -11,7 +11,7 @@ trap _term SIGTERM
 
 # Initialize celery worker
 celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler --detach
-celery -A config worker -l info &
+celery -A config worker -l info -Q default_priority,highest_priority,high_priority,low_priority &
 
 child=$!
 wait "$child"
