@@ -60,7 +60,7 @@ services:
 
   core_celery_worker:
     build: *build-definition
-    command: ["bash", "/app/deploy/docker-entrypoint.celery_worker.sh"]
+    command: ["bash", "/app/deploy/docker-entrypoint.celery.sh"]
     depends_on:
       database:
         condition: service_started
@@ -73,24 +73,6 @@ services:
     networks:
       - mor_network
       - mor_bridge_network
-    # restart: on-failure
-
-  core_app_celery_beat:
-    build: *build-definition
-    command: "celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
-    depends_on:
-      database:
-        condition: service_started
-      redis:
-        condition: service_started
-    volumes:
-      - ./media:/media
-    env_file:
-      - .env.local
-    networks:
-      - mor_network
-      - mor_bridge_network
-    # restart: on-failure
 
   flower:
     image: mher/flower
