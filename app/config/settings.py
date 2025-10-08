@@ -221,6 +221,30 @@ CELERY_WORKER_MAX_TASKS_PER_CHILD = 20
 CELERY_WORKER_MAX_MEMORY_PER_CHILD = 200000
 CELERY_WORKER_SEND_TASK_EVENTS = True
 
+TASK_LOW_PRIORITY_QUEUE = "low_priority"
+TASK_DEFAULT_PRIORITY_QUEUE = "default_priority"
+TASK_HIGH_PRIORITY_QUEUE = "high_priority"
+TASK_HIGHEST_PRIORITY_QUEUE = "highest_priority"
+CELERY_TASK_DEFAULT_QUEUE = TASK_HIGH_PRIORITY_QUEUE
+
+CELERY_TASK_ROUTES = {
+    "config.celery.critical_task": {
+        "queue": TASK_HIGHEST_PRIORITY_QUEUE,
+        "priority": 0,
+    },
+    "config.celery.urgent_task": {
+        "queue": TASK_HIGH_PRIORITY_QUEUE,
+        "priority": 3,
+    },
+    "config.celery.regular_task": {
+        "queue": TASK_DEFAULT_PRIORITY_QUEUE,
+        "priority": 6,
+    },
+    "config.celery.not_so_important_task": {
+        "queue": TASK_LOW_PRIORITY_QUEUE,
+        "priority": 9,
+    },
+}
 
 if ENVIRONMENT in ["unittest", "development"]:
     DJANGO_TEST_USERNAME = os.getenv("DJANGO_TEST_USERNAME", "test")
