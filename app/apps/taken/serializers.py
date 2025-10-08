@@ -134,6 +134,46 @@ class TaakopdrachtLinksSerializer(serializers.Serializer):
         )
 
 
+class TaakopdrachtListSerializer(serializers.ModelSerializer):
+    _links = TaakopdrachtLinksSerializer(source="*", read_only=True)
+    status = TaakstatusSerializer(read_only=True)
+    task_taak_aanmaken__status = serializers.SerializerMethodField()
+
+    def get_task_taak_aanmaken__status(self, obj):
+        return obj.task_taak_aanmaken.status if obj.task_taak_aanmaken else None
+
+    class Meta:
+        model = Taakopdracht
+        fields = (
+            "_links",
+            "id",
+            "uuid",
+            "taaktype",
+            "titel",
+            "bericht",
+            "verwijderd_op",
+            "afgesloten_op",
+            "status",
+            "resolutie",
+            "taak_url",
+            "task_taak_aanmaken__status",
+        )
+        read_only_fields = (
+            "_links",
+            "id",
+            "uuid",
+            "taaktype",
+            "titel",
+            "bericht",
+            "verwijderd_op",
+            "afgesloten_op",
+            "status",
+            "resolutie",
+            "taak_url",
+            "task_taak_aanmaken__status",
+        )
+
+
 class TaakopdrachtSerializer(serializers.ModelSerializer):
     _links = TaakopdrachtLinksSerializer(source="*", read_only=True)
     taaktype = serializers.URLField()
@@ -142,6 +182,10 @@ class TaakopdrachtSerializer(serializers.ModelSerializer):
         many=True, read_only=True
     )
     gebruiker = serializers.CharField(required=False, allow_null=True)
+    task_taak_aanmaken__status = serializers.SerializerMethodField()
+
+    def get_task_taak_aanmaken__status(self, obj):
+        return obj.task_taak_aanmaken.status if obj.task_taak_aanmaken else None
 
     class Meta:
         model = Taakopdracht
@@ -161,6 +205,7 @@ class TaakopdrachtSerializer(serializers.ModelSerializer):
             "melding",
             "taakgebeurtenissen_voor_taakopdracht",
             "taak_url",
+            "task_taak_aanmaken__status",
         )
         read_only_fields = (
             "_links",
@@ -173,6 +218,7 @@ class TaakopdrachtSerializer(serializers.ModelSerializer):
             "melding",
             "taakgebeurtenissen_voor_taakopdracht",
             "taak_url",
+            "task_taak_aanmaken__status",
         )
 
 
@@ -250,3 +296,7 @@ class TaakopdrachtVerwijderenSerializer(serializers.ModelSerializer):
 class TaaktypeAantallenSerializer(serializers.Serializer):
     def to_representation(self, instance):
         return instance
+
+
+class TaakopdrachtHerstartTaskTaakAanmakenSerializer(serializers.Serializer):
+    taakopdrachten = serializers.ListField(child=serializers.UUIDField())
