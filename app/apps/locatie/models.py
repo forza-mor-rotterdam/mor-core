@@ -74,6 +74,13 @@ class Locatie(BasisModel):
     vak = models.CharField(max_length=10, null=True, blank=True)
     gewicht = models.FloatField(default=0.2)
     primair = models.BooleanField(default=False)
+    gebruiker = models.ForeignKey(
+        to="authenticatie.Gebruiker",
+        related_name="locatie_voor_gebruiker",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
 
     def get_zoek_tekst(self):
         if self.locatie_type == "adres":
