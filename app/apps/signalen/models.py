@@ -90,3 +90,6 @@ class Signaal(BasisModel):
             "bron_id",
             "bron_signaal_id",
         )
+        indexes = [
+            models.Index(fields=["signaal_url"], name="signaal_url_idx"),
+        ]
