@@ -69,7 +69,6 @@ class Locatie(BasisModel):
     wijknaam = models.CharField(max_length=255, null=True, blank=True)
     buurtnaam = models.CharField(max_length=255, null=True, blank=True)
     lichtmast_id = models.CharField(max_length=255, null=True, blank=True)
-    plaatsnaam = models.CharField(max_length=255, null=True, blank=True)
     begraafplaats = models.CharField(max_length=50, null=True, blank=True)
     grafnummer = models.CharField(max_length=10, null=True, blank=True)
     vak = models.CharField(max_length=10, null=True, blank=True)
@@ -93,13 +92,18 @@ class Locatie(BasisModel):
     class Meta:
         indexes = [
             models.Index(
+                fields=["buurtnaam", "wijknaam", "plaatsnaam"],
+                name="buurt_wijk_plaats_idx",
+            ),
+            models.Index(
                 fields=["buurtnaam", "wijknaam"], name="buurtnaam_wijknaam_idx"
             ),
             models.Index(fields=["buurtnaam"], name="buurtnaam_idx"),
             models.Index(fields=["wijknaam"], name="wijknaam_idx"),
+            models.Index(fields=["plaatsnaam"], name="plaatsnaam_idx"),
             models.Index(fields=["begraafplaats"], name="begraafplaats_idx"),
             models.Index(fields=["grafnummer"], name="grafnummer_idx"),
-            models.Index(fields=["vak"], name="vak"),
+            models.Index(fields=["vak"], name="vak_idx"),
         ]
 
 
