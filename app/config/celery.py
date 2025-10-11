@@ -2,6 +2,7 @@ import os
 
 from celery import Celery, shared_task
 from celery.signals import setup_logging
+from django.conf import settings
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
@@ -19,12 +20,39 @@ app.conf.worker_prefetch_multiplier = 1
 def config_loggers(*args, **kwags):
     from logging.config import dictConfig
 
-    from django.conf import settings
+    # from django.conf import settings
 
     dictConfig(settings.LOGGING)
 
 
 app.autodiscover_tasks()
+
+celery_inspect = app.control.inspect()
+registered_tasks = celery_inspect.registered_tasks()
+tasks = list(
+    set(
+        task
+        for tasks_list in (registered_tasks.values() if registered_tasks else [])
+        for task in tasks_list
+    )
+)
+
+app.task_routes = {task: settings.TASK_LOW_PRIORITY_QUEUE for task in tasks}
+app.task_routes.update(
+    {
+        task: settings.TASK_DEFAULT_PRIORITY_QUEUE
+        for task in settings.DEFAULT_PRIORITY_TASKS
+    }
+)
+app.task_routes.update(
+    {task: settings.TASK_HIGH_PRIORITY_QUEUE for task in settings.HIGH_PRIORITY_TASKS}
+)
+app.task_routes.update(
+    {
+        task: settings.TASK_HIGHEST_PRIORITY_QUEUE
+        for task in settings.HIGHEST_PRIORITY_TASKS
+    }
+)
 
 
 @app.task()
