@@ -257,6 +257,19 @@ HIGH_PRIORITY_TASKS = [
 DEFAULT_PRIORITY_TASKS = [
     "config.celery.regular_task",
 ]
+LOW_PRIORITY_TASKS = [
+    "config.celery.not_so_important_task",
+    "config.celery.test_mixed_priority_tasks",
+]
+PRIORITY_TASKS = (
+    (HIGHEST_PRIORITY_TASKS, TASK_HIGHEST_PRIORITY_QUEUE),
+    (HIGH_PRIORITY_TASKS, TASK_HIGH_PRIORITY_QUEUE),
+    (DEFAULT_PRIORITY_TASKS, TASK_DEFAULT_PRIORITY_QUEUE),
+    (LOW_PRIORITY_TASKS, TASK_LOW_PRIORITY_QUEUE),
+)
+CELERY_TASK_ROUTES = {
+    task: queue for task_list, queue in PRIORITY_TASKS for task in task_list
+}
 # CELERY_TASK_ROUTES = {
 #     "config.celery.critical_task": {
 #         "queue": TASK_HIGHEST_PRIORITY_QUEUE,
