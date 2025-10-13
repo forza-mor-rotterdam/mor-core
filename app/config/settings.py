@@ -163,6 +163,9 @@ if DEBUG:
 # Database settings
 DEFAULT_DATABASE_KEY = "default"
 READONLY_DATABASE_KEY = "readonly"
+DEFAULT_OPTIONS = {
+    "options": "-c statement_timeout=30s",
+}
 
 DATABASE_NAME = os.getenv("DATABASE_NAME")
 DATABASE_USER = os.getenv("DATABASE_USER")
@@ -183,6 +186,7 @@ DEFAULT_DATABASE = {
     "PASSWORD": DATABASE_PASSWORD,  # noqa
     "HOST": DATABASE_HOST,  # noqa
     "PORT": DATABASE_PORT,  # noqa
+    "OPTIONS": DEFAULT_OPTIONS,
 }
 READONLY_DATABASE = {
     "ENGINE": "django.contrib.gis.db.backends.postgis",
@@ -191,6 +195,7 @@ READONLY_DATABASE = {
     "PASSWORD": READONLY_DATABASE_PASSWORD,  # noqa
     "HOST": READONLY_DATABASE_HOST,  # noqa
     "PORT": READONLY_DATABASE_PORT,  # noqa
+    "OPTIONS": DEFAULT_OPTIONS,
 }
 
 DATABASES = {
