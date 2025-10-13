@@ -164,7 +164,7 @@ if DEBUG:
 DEFAULT_DATABASE_KEY = "default"
 READONLY_DATABASE_KEY = "readonly"
 DEFAULT_OPTIONS = {
-    "options": "-c statement_timeout=30s",
+    "options": f'-c statement_timeout={os.getenv("DATABASE_STATEMENT_TIMEOUT", "30")}s',
 }
 
 DATABASE_NAME = os.getenv("DATABASE_NAME")
