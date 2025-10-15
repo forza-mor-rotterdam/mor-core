@@ -230,64 +230,32 @@ TASK_LOW_PRIORITY_QUEUE_NAME = "low_priority"
 TASK_DEFAULT_PRIORITY_QUEUE_NAME = "default_priority"
 TASK_HIGH_PRIORITY_QUEUE_NAME = "high_priority"
 TASK_HIGHEST_PRIORITY_QUEUE_NAME = "highest_priority"
-TASK_LOW_PRIORITY_QUEUE = {
-    "queue": TASK_LOW_PRIORITY_QUEUE_NAME,
-    "priority": 9,
-}
-TASK_DEFAULT_PRIORITY_QUEUE = {
-    "queue": TASK_DEFAULT_PRIORITY_QUEUE_NAME,
-    "priority": 6,
-}
-TASK_HIGH_PRIORITY_QUEUE = {
-    "queue": TASK_HIGH_PRIORITY_QUEUE_NAME,
-    "priority": 3,
-}
-TASK_HIGHEST_PRIORITY_QUEUE = {
-    "queue": TASK_HIGHEST_PRIORITY_QUEUE_NAME,
-    "priority": 0,
-}
+
+TASK_QUEUES = (
+    (TASK_HIGHEST_PRIORITY_QUEUE_NAME, 0),
+    (TASK_HIGH_PRIORITY_QUEUE_NAME, 3),
+    (TASK_DEFAULT_PRIORITY_QUEUE_NAME, 6),
+    (TASK_LOW_PRIORITY_QUEUE_NAME, 9),
+)
 CELERY_TASK_DEFAULT_QUEUE = TASK_HIGH_PRIORITY_QUEUE_NAME
 
 HIGHEST_PRIORITY_TASKS = [
-    "config.celery.critical_task",
+    "config.celery.test_critical_task",
 ]
 HIGH_PRIORITY_TASKS = [
-    "config.celery.urgent_task",
+    "config.celery.test_urgent_task",
+    "apps.bijlagen.task_aanmaken_afbeelding_versies",
 ]
 DEFAULT_PRIORITY_TASKS = [
-    "config.celery.regular_task",
+    "config.celery.test_regular_task",
+    "apps.taken.task_taak_aanmaken_v2",
+    "apps.taken.task_taak_verwijderen",
+    "apps.meldingen.task_notificaties_voor_melding_veranderd",
+    "apps.meldingen.task_notificatie_voor_melding_veranderd",
 ]
-LOW_PRIORITY_TASKS = [
-    "config.celery.not_so_important_task",
-    "config.celery.test_mixed_priority_tasks",
-]
-PRIORITY_TASKS = (
-    (HIGHEST_PRIORITY_TASKS, TASK_HIGHEST_PRIORITY_QUEUE),
-    (HIGH_PRIORITY_TASKS, TASK_HIGH_PRIORITY_QUEUE),
-    (DEFAULT_PRIORITY_TASKS, TASK_DEFAULT_PRIORITY_QUEUE),
-    (LOW_PRIORITY_TASKS, TASK_LOW_PRIORITY_QUEUE),
-)
-CELERY_TASK_ROUTES = {
-    task: queue for task_list, queue in PRIORITY_TASKS for task in task_list
-}
-# CELERY_TASK_ROUTES = {
-#     "config.celery.critical_task": {
-#         "queue": TASK_HIGHEST_PRIORITY_QUEUE,
-#         "priority": 0,
-#     },
-#     "config.celery.urgent_task": {
-#         "queue": TASK_HIGH_PRIORITY_QUEUE,
-#         "priority": 3,
-#     },
-#     "config.celery.regular_task": {
-#         "queue": TASK_DEFAULT_PRIORITY_QUEUE,
-#         "priority": 6,
-#     },
-#     "config.celery.not_so_important_task": {
-#         "queue": TASK_LOW_PRIORITY_QUEUE,
-#         "priority": 9,
-#     },
-# }
+LOW_PRIORITY_TASKS = []
+CELERY_TASK_ROUTES = "config.celery.task_router"
+
 
 if ENVIRONMENT in ["unittest", "development"]:
     DJANGO_TEST_USERNAME = os.getenv("DJANGO_TEST_USERNAME", "test")
