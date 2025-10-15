@@ -226,30 +226,36 @@ CELERY_WORKER_MAX_TASKS_PER_CHILD = 20
 CELERY_WORKER_MAX_MEMORY_PER_CHILD = 200000
 CELERY_WORKER_SEND_TASK_EVENTS = True
 
-TASK_LOW_PRIORITY_QUEUE = "low_priority"
-TASK_DEFAULT_PRIORITY_QUEUE = "default_priority"
-TASK_HIGH_PRIORITY_QUEUE = "high_priority"
-TASK_HIGHEST_PRIORITY_QUEUE = "highest_priority"
-CELERY_TASK_DEFAULT_QUEUE = TASK_HIGH_PRIORITY_QUEUE
+TASK_LOW_PRIORITY_QUEUE_NAME = "low_priority"
+TASK_DEFAULT_PRIORITY_QUEUE_NAME = "default_priority"
+TASK_HIGH_PRIORITY_QUEUE_NAME = "high_priority"
+TASK_HIGHEST_PRIORITY_QUEUE_NAME = "highest_priority"
 
-CELERY_TASK_ROUTES = {
-    "config.celery.critical_task": {
-        "queue": TASK_HIGHEST_PRIORITY_QUEUE,
-        "priority": 0,
-    },
-    "config.celery.urgent_task": {
-        "queue": TASK_HIGH_PRIORITY_QUEUE,
-        "priority": 3,
-    },
-    "config.celery.regular_task": {
-        "queue": TASK_DEFAULT_PRIORITY_QUEUE,
-        "priority": 6,
-    },
-    "config.celery.not_so_important_task": {
-        "queue": TASK_LOW_PRIORITY_QUEUE,
-        "priority": 9,
-    },
-}
+TASK_QUEUES = (
+    (TASK_HIGHEST_PRIORITY_QUEUE_NAME, 0),
+    (TASK_HIGH_PRIORITY_QUEUE_NAME, 3),
+    (TASK_DEFAULT_PRIORITY_QUEUE_NAME, 6),
+    (TASK_LOW_PRIORITY_QUEUE_NAME, 9),
+)
+CELERY_TASK_DEFAULT_QUEUE = TASK_HIGH_PRIORITY_QUEUE_NAME
+
+HIGHEST_PRIORITY_TASKS = [
+    "config.celery.test_critical_task",
+]
+HIGH_PRIORITY_TASKS = [
+    "config.celery.test_urgent_task",
+    "apps.bijlagen.task_aanmaken_afbeelding_versies",
+]
+DEFAULT_PRIORITY_TASKS = [
+    "config.celery.test_regular_task",
+    "apps.taken.task_taak_aanmaken_v2",
+    "apps.taken.task_taak_verwijderen",
+    "apps.meldingen.task_notificaties_voor_melding_veranderd",
+    "apps.meldingen.task_notificatie_voor_melding_veranderd",
+]
+LOW_PRIORITY_TASKS = []
+CELERY_TASK_ROUTES = "config.celery.task_router"
+
 
 if ENVIRONMENT in ["unittest", "development"]:
     DJANGO_TEST_USERNAME = os.getenv("DJANGO_TEST_USERNAME", "test")
