@@ -1,0 +1,83 @@
+{
+    "permissions": [
+        {
+            "configure": ".*",
+            "read": ".*",
+            "user": "guest",
+            "vhost": "/",
+            "write": ".*"
+        },
+        {
+            "configure": ".*",
+            "read": ".*",
+            "user": "automatr",
+            "vhost": "/",
+            "write": ".*"
+        },
+        {
+            "configure": ".*",
+            "read": ".*",
+            "user": "morcore",
+            "vhost": "/",
+            "write": ".*"
+        }
+    ],
+    "queues": [],
+    "policies": [],
+    "parameters": [],
+    "rabbitmq_version": "4.1.2",
+    "rabbit_version": "4.1.2",
+    "exchanges": [
+        {
+            "arguments": {},
+            "auto_delete": false,
+            "durable": false,
+            "name": "morcore",
+            "type": "topic",
+            "vhost": "/"
+        }
+    ],
+    "vhosts": [
+        {
+            "limits": [],
+            "metadata": {
+                "description": "Default virtual host",
+                "tags": [],
+                "default_queue_type": "classic"
+            },
+            "name": "/"
+        }
+    ],
+    "users": [
+        {
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "limits": {},
+            "name": "guest",
+            "password_hash": "QZDL7DTRFU5dxsZDE81vkmnY/UlNXAL9j+e/Lq3M+nWDVQGY",
+            "tags": [
+                "administrator"
+            ]
+        },
+        {
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "limits": {},
+            "name": "automatr",
+            "password_hash": "B8y8q3NB0S0kpXXVPIJICcCVNLy/d83YSSfSxBp4nEl9GATS",
+            "tags": []
+        },
+        {
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "limits": {},
+            "name": "morcore",
+            "password_hash": "B8y8q3NB0S0kpXXVPIJICcCVNLy/d83YSSfSxBp4nEl9GATS",
+            "tags": []
+        }
+    ],
+    "global_parameters": [
+        {
+            "name": "cluster_tags",
+            "value": []
+        }
+    ],
+    "topic_permissions": []
+}

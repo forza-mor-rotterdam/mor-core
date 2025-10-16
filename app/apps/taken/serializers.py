@@ -13,9 +13,9 @@ class TaakstatusSerializer(serializers.ModelSerializer):
         model = Taakstatus
         fields = (
             "naam",
+            "aangemaakt_op",
             "taakopdracht",
         )
-        # read_only_fields = ("taakopdracht",)
 
 
 class TaakgebeurtenisLinksSerializer(serializers.Serializer):
@@ -49,19 +49,40 @@ class TaakgebeurtenisSerializer(serializers.ModelSerializer):
         fields = (
             "_links",
             "aangemaakt_op",
+            "verwijderd_op",
             "bijlagen",
             "taakstatus",
+            "resolutie",
             "omschrijving_intern",
             "taakopdracht",
             "gebruiker",
+            "additionele_informatie",
         )
         read_only_fields = (
             "_links",
             "aangemaakt_op",
+            "verwijderd_op",
             "bijlagen",
             "taakstatus",
+            "resolutie",
             "omschrijving_intern",
             "taakopdracht",
+            "additionele_informatie",
+        )
+
+
+class TaakgebeurtenisBijlagenSerializer(serializers.ModelSerializer):
+    bijlagen = BijlageSerializer(many=True, required=False)
+
+    class Meta:
+        model = Taakgebeurtenis
+        fields = (
+            "bijlagen",
+            "aangemaakt_op",
+        )
+        read_only_fields = (
+            "bijlagen",
+            "aangemaakt_op",
         )
 
 
@@ -69,6 +90,7 @@ class TaakgebeurtenisStatusSerializer(WritableNestedModelSerializer):
     bijlagen = BijlageSerializer(many=True, required=False)
     taakstatus = TaakstatusSerializer(required=True)
     resolutie = serializers.CharField(required=False, allow_null=True)
+    uitvoerder = serializers.CharField(required=False, allow_null=True)
 
     class Meta:
         model = Taakgebeurtenis
@@ -78,6 +100,7 @@ class TaakgebeurtenisStatusSerializer(WritableNestedModelSerializer):
             "resolutie",
             "omschrijving_intern",
             "gebruiker",
+            "uitvoerder",
         )
 
 
@@ -111,14 +134,13 @@ class TaakopdrachtLinksSerializer(serializers.Serializer):
         )
 
 
-class TaakopdrachtSerializer(serializers.ModelSerializer):
+class TaakopdrachtListSerializer(serializers.ModelSerializer):
     _links = TaakopdrachtLinksSerializer(source="*", read_only=True)
-    taaktype = serializers.URLField()
     status = TaakstatusSerializer(read_only=True)
-    taakgebeurtenissen_voor_taakopdracht = TaakgebeurtenisSerializer(
-        many=True, read_only=True
-    )
-    gebruiker = serializers.CharField(required=False, allow_null=True)
+    task_taak_aanmaken__status = serializers.SerializerMethodField()
+
+    def get_task_taak_aanmaken__status(self, obj):
+        return obj.task_taak_aanmaken.status if obj.task_taak_aanmaken else None
 
     class Meta:
         model = Taakopdracht
@@ -129,17 +151,152 @@ class TaakopdrachtSerializer(serializers.ModelSerializer):
             "taaktype",
             "titel",
             "bericht",
-            "additionele_informatie",
+            "verwijderd_op",
+            "afgesloten_op",
             "status",
-            "melding",
-            "taakgebeurtenissen_voor_taakopdracht",
-            "gebruiker",
+            "resolutie",
+            "taak_url",
+            "task_taak_aanmaken__status",
         )
         read_only_fields = (
             "_links",
             "id",
             "uuid",
+            "taaktype",
+            "titel",
+            "bericht",
+            "verwijderd_op",
+            "afgesloten_op",
             "status",
+            "resolutie",
+            "taak_url",
+            "task_taak_aanmaken__status",
+        )
+
+
+class TaakopdrachtSerializer(serializers.ModelSerializer):
+    _links = TaakopdrachtLinksSerializer(source="*", read_only=True)
+    taaktype = serializers.URLField()
+    status = TaakstatusSerializer(read_only=True)
+    taakgebeurtenissen_voor_taakopdracht = TaakgebeurtenisSerializer(
+        many=True, read_only=True
+    )
+    gebruiker = serializers.CharField(required=False, allow_null=True)
+    task_taak_aanmaken__status = serializers.SerializerMethodField()
+
+    def get_task_taak_aanmaken__status(self, obj):
+        return obj.task_taak_aanmaken.status if obj.task_taak_aanmaken else None
+
+    class Meta:
+        model = Taakopdracht
+        fields = (
+            "taaktype",
+            "titel",
+            "bericht",
+            "additionele_informatie",
+            "gebruiker",
+            "_links",
+            "id",
+            "uuid",
+            "verwijderd_op",
+            "afgesloten_op",
+            "status",
+            "resolutie",
             "melding",
             "taakgebeurtenissen_voor_taakopdracht",
+            "taak_url",
+            "task_taak_aanmaken__status",
         )
+        read_only_fields = (
+            "_links",
+            "id",
+            "uuid",
+            "verwijderd_op",
+            "afgesloten_op",
+            "status",
+            "resolutie",
+            "melding",
+            "taakgebeurtenissen_voor_taakopdracht",
+            "taak_url",
+            "task_taak_aanmaken__status",
+        )
+
+
+class TaakopdrachtNotificatieTaakstatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Taakstatus
+        fields = ("naam",)
+
+
+class TaakopdrachtNotificatieSerializer(serializers.ModelSerializer):
+    bijlagen = BijlageSerializer(many=True, required=False, allow_null=True)
+    taakstatus = TaakopdrachtNotificatieTaakstatusSerializer(required=True)
+    resolutie = serializers.CharField(required=False, allow_null=True)
+    resolutie_opgelost_herzien = serializers.BooleanField(
+        required=False, allow_null=True
+    )
+
+    class Meta:
+        model = Taakgebeurtenis
+        fields = (
+            "bijlagen",
+            "taakstatus",
+            "resolutie",
+            "omschrijving_intern",
+            "gebruiker",
+            "resolutie_opgelost_herzien",
+        )
+
+
+class TaakopdrachtNotificatieSaveSerializer(WritableNestedModelSerializer):
+    bijlagen = BijlageSerializer(many=True, required=False, allow_null=True)
+    taakstatus = TaakstatusSerializer(required=False, allow_null=True)
+    resolutie = serializers.CharField(required=False, allow_null=True)
+    aangemaakt_op = serializers.DateTimeField(required=False, allow_null=True)
+    resolutie_opgelost_herzien = serializers.BooleanField(
+        required=False, allow_null=True
+    )
+
+    def validate(self, data):
+        from apps.taken.models import Taakstatus
+
+        if not [data.values()]:
+            raise serializers.ValidationError(
+                "Er is minimaal 1 veld nodig voor de notificatie"
+            )
+        if data.get("taakstatus", {}).get("naam") in [
+            Taakstatus.NaamOpties.VOLTOOID,
+            Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
+        ] and not data.get("resolutie"):
+            raise serializers.ValidationError(
+                "Als de taakopdracht wordt voltooid is een resolutie noodzakelijk"
+            )
+
+        return data
+
+    class Meta:
+        model = Taakgebeurtenis
+        fields = (
+            "bijlagen",
+            "taakstatus",
+            "resolutie",
+            "omschrijving_intern",
+            "gebruiker",
+            "resolutie_opgelost_herzien",
+            "aangemaakt_op",
+        )
+
+
+class TaakopdrachtVerwijderenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Taakgebeurtenis
+        fields = []
+
+
+class TaaktypeAantallenSerializer(serializers.Serializer):
+    def to_representation(self, instance):
+        return instance
+
+
+class TaakopdrachtHerstartTaskTaakAanmakenSerializer(serializers.Serializer):
+    taakopdrachten = serializers.ListField(child=serializers.UUIDField())

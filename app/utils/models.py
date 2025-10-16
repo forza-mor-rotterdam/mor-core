@@ -1,6 +1,7 @@
 import uuid
 
 from django.contrib.gis.db import models
+from django.db.models.expressions import Func
 
 
 class BasisModel(models.Model):
@@ -10,3 +11,8 @@ class BasisModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class Epoch(Func):
+    template = "EXTRACT(epoch FROM %(expressions)s)::DOUBLE PRECISION"
+    output_field = models.FloatField()

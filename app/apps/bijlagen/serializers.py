@@ -9,13 +9,10 @@ class DefaultBase64File(Base64FileField):
 
     def get_file_extension(self, filename, decoded_file):
         # TODO nadenken over beter upload van bestanden, vooral grote bestanden komen niet heel door
-        # f = magic.Magic(extension=True)
-        # extensions = f.from_buffer(io.BytesIO(decoded_file).read(2048))
-        # print("get_file_extension")
-        # print(extensions)
-        # return extensions.split("/")[0] if extensions != "???" else "jpg"
         kind = filetype.guess(decoded_file)
-        return kind.extension
+        if kind:
+            return kind.extension
+        return
 
 
 class BijlageSerializer(serializers.ModelSerializer):
@@ -38,6 +35,8 @@ class BijlageSerializer(serializers.ModelSerializer):
         fields = (
             "uuid",
             "bestand",
+            "bestand_hash",
+            "aangemaakt_op",
             "afbeelding",
             "afbeelding_verkleind",
             "mimetype",
@@ -47,10 +46,46 @@ class BijlageSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "uuid",
+            "bestand_hash",
+            "aangemaakt_op",
             "afbeelding",
             "afbeelding_verkleind",
             "is_afbeelding",
             "mimetype",
+            "afbeelding_relative_url",
+            "afbeelding_verkleind_relative_url",
+        )
+
+
+class BijlageAlleenLezenSerializer(serializers.ModelSerializer):
+    """
+    Alleen lezen Bijlage serializer
+    """
+
+    afbeelding_relative_url = serializers.SerializerMethodField()
+    afbeelding_verkleind_relative_url = serializers.SerializerMethodField()
+
+    def get_afbeelding_relative_url(self, obj):
+        return obj.afbeelding.url if obj.afbeelding else None
+
+    def get_afbeelding_verkleind_relative_url(self, obj):
+        return obj.afbeelding_verkleind.url if obj.afbeelding_verkleind else None
+
+    class Meta:
+        model = Bijlage
+        fields = (
+            "bestand_hash",
+            "aangemaakt_op",
+            "afbeelding",
+            "afbeelding_verkleind",
+            "afbeelding_relative_url",
+            "afbeelding_verkleind_relative_url",
+        )
+        read_only_fields = (
+            "bestand_hash",
+            "aangemaakt_op",
+            "afbeelding",
+            "afbeelding_verkleind",
             "afbeelding_relative_url",
             "afbeelding_verkleind_relative_url",
         )
