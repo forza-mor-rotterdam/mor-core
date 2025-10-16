@@ -252,6 +252,7 @@ DEFAULT_PRIORITY_TASKS = [
     "apps.taken.task_taak_verwijderen",
     "apps.meldingen.task_notificaties_voor_melding_veranderd",
     "apps.meldingen.task_notificatie_voor_melding_veranderd",
+    "apps.meldingen.task_notificatie_voor_signaal_melding_afgesloten",
 ]
 LOW_PRIORITY_TASKS = []
 CELERY_TASK_ROUTES = "config.celery.task_router"

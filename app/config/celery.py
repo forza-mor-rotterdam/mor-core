@@ -1,5 +1,6 @@
 import logging
 import os
+import uuid
 
 from celery import Celery, shared_task
 from celery.signals import setup_logging
@@ -12,6 +13,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 app = Celery("proj")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.conf.worker_prefetch_multiplier = 1
+app.conf.worker_cancel_long_running_tasks_on_connection_loss = True
 
 
 @setup_logging.connect
@@ -66,83 +68,104 @@ def task_router(name, args, kwargs, options, task=None, **kw):
 
 
 @app.task()
-def test_critical_task(sleep=5):
+def test_critical_task(sleep=5, param_uuid=None):
     import time
 
     time.sleep(sleep)
+    return param_uuid
 
 
 @app.task()
-def test_urgent_task(sleep=5):
+def test_urgent_task(sleep=5, param_uuid=None):
     import time
 
     time.sleep(sleep)
+    return param_uuid
 
 
 @app.task()
-def test_regular_task(sleep=5):
+def test_regular_task(sleep=5, param_uuid=None):
     import time
 
     time.sleep(sleep)
+    return param_uuid
 
 
 @app.task(queue="highest_priority")
-def test_regular_made_important_task(sleep=5):
+def test_regular_made_important_task(sleep=5, param_uuid=None):
     import time
 
     time.sleep(sleep)
+    return param_uuid
 
 
 @app.task()
-def test_not_so_important_task(sleep=5):
+def test_not_so_important_task(sleep=5, param_uuid=None):
     import time
 
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute("select pg_sleep(41)")
     time.sleep(sleep)
+    return param_uuid
+
+
+@app.task()
+def test_pg_sleep_task(sleep=121, param_uuid=None):
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute(f"select pg_sleep({sleep})")
+    return param_uuid
 
 
 @shared_task(bind=True)
 def test_mixed_priority_tasks(self, count=20, sleep=5):
     for i in range(0, count):
-        test_not_so_important_task.delay(sleep=sleep)
-        test_regular_task.delay(sleep=sleep)
-        test_urgent_task.delay(sleep=sleep)
-        test_critical_task.delay(sleep=sleep)
+        param_uuid = str(uuid.uuid4())
+        test_not_so_important_task.delay(sleep=sleep, param_uuid=param_uuid)
+        test_regular_task.delay(sleep=sleep, param_uuid=param_uuid)
+        test_urgent_task.delay(sleep=sleep, param_uuid=param_uuid)
+        test_critical_task.delay(sleep=sleep, param_uuid=param_uuid)
 
 
 @shared_task(bind=True)
 def test_mixed_dynamic_priority_tasks(self, count=20, sleep=4):
     for i in range(0, count):
-        test_not_so_important_task.delay(sleep=sleep)
+        test_not_so_important_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
         # task made high prio
         test_not_so_important_task.apply_async(
-            kwargs={"sleep": 8}, queue="high_priority"
+            kwargs={"sleep": 8, "param_uuid": uuid.uuid4()}, queue="high_priority"
         )
-        test_regular_task.delay(sleep=sleep)
-        test_critical_task.delay(sleep=sleep)
+        test_regular_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
+        test_critical_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
 
 
 @shared_task(bind=True)
 def test_low_priority_tasks(self, count=100, sleep=5):
     for i in range(0, count):
-        test_not_so_important_task.delay(sleep=sleep)
+        test_not_so_important_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
 
 
 @shared_task(bind=True)
 def test_default_priority_tasks(self, count=100, sleep=5, priority=6):
     for i in range(0, count):
-        test_regular_task.apply_async(sleep=sleep, priority=priority)
+        test_regular_task.apply_async(
+            kwargs={"sleep": sleep, "param_uuid": uuid.uuid4()}, priority=priority
+        )
 
 
 @shared_task(bind=True)
 def test_highest_priority_tasks(self, count=100, sleep=5):
     for i in range(0, count):
-        test_critical_task.delay(sleep=sleep)
+        test_critical_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
 
 
 @shared_task(bind=True)
 def test_high_priority_tasks(self, count=100, sleep=5):
     for i in range(0, count):
-        test_urgent_task.delay(sleep=sleep)
+        test_urgent_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
 
 
 @app.task(bind=True)
