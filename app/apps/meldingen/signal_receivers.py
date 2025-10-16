@@ -97,7 +97,7 @@ def afgesloten_handler(sender, melding, taakopdrachten=[], *args, **kwargs):
 
     if melding.status.naam == Status.NaamOpties.AFGEHANDELD:
         for signaal in melding.signalen_voor_melding.all():
-            task_notificatie_voor_signaal_melding_afgesloten.delay(signaal.pk)
+            task_notificatie_voor_signaal_melding_afgesloten.delay(signaal.uuid)
 
         task_bijlages_voor_geselecteerde_meldingen_opruimen.delay([melding.id])
 

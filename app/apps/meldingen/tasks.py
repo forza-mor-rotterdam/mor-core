@@ -20,13 +20,13 @@ class BaseTaskWithRetry(celery.Task):
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def task_notificatie_voor_signaal_melding_afgesloten(self, signaal_id):
+def task_notificatie_voor_signaal_melding_afgesloten(self, signaal_uuid):
     from apps.signalen.models import Signaal
 
-    signaal_instantie = Signaal.objects.get(pk=signaal_id)
+    signaal_instantie = Signaal.objects.get(uuid=signaal_uuid)
     signaal_instantie.notificatie_melding_afgesloten()
 
-    return f"Signaal id: {signaal_instantie.pk}"
+    return f"Signaal uuid: {signaal_instantie.uuid}"
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
