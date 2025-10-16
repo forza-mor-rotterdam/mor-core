@@ -1,26 +1,37 @@
 repos:
-  -   repo: https://github.com/pre-commit/pre-commit-hooks
-      rev: v4.4.0
-      hooks:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: detect-private-key
-  -   repo: https://github.com/humitos/mirrors-autoflake.git
-      rev: v1.3
-      hooks:
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.3.1
+    hooks:
       - id: autoflake
-        args: ['--in-place', '--remove-all-unused-imports', '--remove-unused-variable']
-  -   repo: https://github.com/timothycrosley/isort
-      rev: '5.12.0'
-      hooks:
+        args:
+          [
+            "--in-place",
+            "--remove-all-unused-imports",
+            "--remove-unused-variable",
+          ]
+  - repo: https://github.com/timothycrosley/isort
+    rev: "5.13.2"
+    hooks:
       - id: isort
-  -   repo: https://github.com/ambv/black
-      rev: '22.12.0'
-      hooks:
+  - repo: https://github.com/ambv/black
+    rev: "23.10.1"
+    hooks:
       - id: black
         language_version: python3
-  -   repo: https://github.com/pycqa/flake8
-      rev: '6.0.0'
-      hooks:
+  - repo: https://github.com/pycqa/flake8
+    rev: "7.1.0"
+    hooks:
       - id: flake8
+  - repo: https://github.com/djlint/djLint
+    rev: v1.34.1
+    hooks:
+      - id: djlint-reformat-django
+      - id: djlint-django
+        args: ["--ignore", "H006,H008,H013,H023,D004,D018"]

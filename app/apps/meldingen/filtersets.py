@@ -1,11 +1,15 @@
-import operator
-from functools import reduce
+import logging
+from collections import OrderedDict
 from typing import List, Tuple
 
+from apps.aliassen.models import OnderwerpAlias
+from apps.locatie.models import Locatie
 from apps.meldingen.models import Melding
+from django.contrib.gis.geos import Point
+from django.contrib.gis.measure import D
 from django.contrib.postgres.search import TrigramSimilarity
 from django.db import models
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
 from django.db.models.functions import Greatest
 from django.forms.fields import CharField, MultipleChoiceField
 from django.utils.translation import gettext_lazy as _
@@ -13,6 +17,32 @@ from django_filters import rest_framework as filters
 from rest_framework import filters as rest_filters
 from rest_framework.filters import SearchFilter
 from rest_framework.settings import api_settings
+
+logger = logging.getLogger(__name__)
+
+
+class DjangoPreFilterBackend(filters.DjangoFilterBackend):
+    def get_filterset_class(self, view, queryset=None):
+        """
+        Return the `FilterSet` class used to filter the queryset.
+        """
+        filterset_class = getattr(view, "pre_filterset_class", None)
+
+        if filterset_class:
+            filterset_model = filterset_class._meta.model
+
+            # FilterSets do not need to specify a Meta class
+            if filterset_model and queryset is not None:
+                assert issubclass(
+                    queryset.model, filterset_model
+                ), "FilterSet model %s does not match queryset model %s" % (
+                    filterset_model,
+                    queryset.model,
+                )
+
+            return filterset_class
+
+        return None
 
 
 class MultipleValueField(MultipleChoiceField):
@@ -35,7 +65,18 @@ class MultipleValueFilter(filters.Filter):
         super().__init__(*args, field_class=field_class, **kwargs)
 
 
-class BasisFilter(filters.FilterSet):
+class PreFilterFilterSet(filters.FilterSet):
+    pre_filter = False
+
+    @classmethod
+    def get_filters(cls):
+        filters = super().get_filters()
+        if cls.pre_filter:
+            filters = OrderedDict([(f"pre_{k}", v) for k, v in filters.items()])
+        return filters
+
+
+class BasisFilter(PreFilterFilterSet):
     aangemaakt_op_gte = filters.DateTimeFilter(
         field_name="aangemaakt_op", lookup_expr="gte"
     )
@@ -90,10 +131,16 @@ class MeldingFilter(BasisFilter):
     )
 
     omschrijving = filters.CharFilter(method="get_omschrijving")
+    q = filters.CharFilter(method="get_q")
 
     actieve_meldingen = filters.BooleanFilter(method="get_actieve_meldingen")
     onderwerp = MultipleValueFilter(field_class=CharField, method="get_onderwerpen")
+    onderwerp_url = MultipleValueFilter(
+        field_class=CharField, method="get_onderwerp_urls"
+    )
     status = MultipleValueFilter(field_class=CharField, method="get_statussen")
+    buurt = MultipleValueFilter(field_class=CharField, method="get_buurt")
+    wijk = MultipleValueFilter(field_class=CharField, method="get_wijk")
     begraafplaats = MultipleValueFilter(
         field_class=CharField, method="get_begraafplaatsen"
     )
@@ -115,11 +162,37 @@ class MeldingFilter(BasisFilter):
     begraafplaats_grafnummer_lt = filters.NumberFilter(
         method="get_begraafplaats_grafnummer"
     )
-
-    # b&c
-    meta__categorie = MultipleValueFilter(
-        field_class=CharField, method="get_categories"
+    within = filters.CharFilter(method="get_within")
+    urgentie = filters.NumberFilter(
+        field_name="urgentie",
     )
+    urgentie_gt = filters.NumberFilter(field_name="urgentie", lookup_expr="gt")
+    urgentie_gte = filters.NumberFilter(field_name="urgentie", lookup_expr="gte")
+    urgentie_lt = filters.NumberFilter(field_name="urgentie", lookup_expr="lt")
+    urgentie_lte = filters.NumberFilter(field_name="urgentie", lookup_expr="lte")
+
+    def get_within(self, queryset, name, value):
+        """
+        ./?within=lat:51.924392,d:100,lon:4.477738
+        """
+        try:
+            d = {
+                n: float(value.split(f"{n}:")[1].split(",")[0])
+                for n in ["lat", "lon", "d"]
+            }
+        except Exception:
+            logger.warning(f"Warning: within syntax not ok: {value}")
+            return queryset
+        locaties = Locatie.objects.filter(
+            melding=OuterRef("pk"),
+            geometrie__isnull=False,
+        ).order_by("-gewicht")
+        return queryset.annotate(geometrie=locaties.values("geometrie")[:1]).filter(
+            geometrie__distance_lt=(
+                Point(d["lon"], d["lat"]),
+                D(m=d["d"]),
+            )
+        )
 
     def get_begraafplaats_grafnummer(self, queryset, name, value):
         if value:
@@ -149,27 +222,64 @@ class MeldingFilter(BasisFilter):
             return qs
         return queryset
 
+    # Er kan op meerdere komma separated zoektermen gezocht worden
+    def get_q(self, queryset, name, value):
+        if value:
+            search_terms = value.split(",")
+            cleaned_search_terms = [
+                "".join(
+                    [
+                        char
+                        for char in term.strip()
+                        if char not in ["*", "(", ")", "?", "[", "]", "{", "}", "\\"]
+                    ]
+                )
+                for term in search_terms
+            ]
+            cleaned_search_terms = [term for term in cleaned_search_terms if term]
+
+            combined_q = Q()
+            for term in cleaned_search_terms:
+                combined_q &= Q(zoek_tekst__icontains=term)
+
+            return queryset.filter(combined_q).distinct()
+
+        return queryset
+
+    def get_buurt(self, queryset, name, value):
+        if value:
+            return queryset.filter(
+                referentie_locatie__buurtnaam__in=value,
+            )
+        return queryset
+
+    def get_wijk(self, queryset, name, value):
+        if value:
+            return queryset.filter(
+                referentie_locatie__wijknaam__in=value,
+            )
+        return queryset
+
     def get_begraafplaatsen(self, queryset, name, value):
         if value:
             return queryset.filter(
-                locaties_voor_melding__begraafplaats__in=value
-            ).distinct()
+                referentie_locatie__begraafplaats__in=value,
+            )
         return queryset
 
     def get_statussen(self, queryset, name, value):
         if value:
-            return queryset.filter(status__naam__in=value)
+            return queryset.filter(status__naam__in=value).distinct()
         return queryset
 
     def get_onderwerpen(self, queryset, name, value):
         if value:
-            return queryset.filter(onderwerpen__in=value)
+            return queryset.filter(onderwerpen__in=value).distinct()
         return queryset
 
-    def get_categories(self, queryset, name, value):
+    def get_onderwerp_urls(self, queryset, name, value):
         if value:
-            categories = (Q(meta__categorie__icontains=str(cat)) for cat in value)
-            return queryset.filter(reduce(operator.or_, categories))
+            return queryset.filter(onderwerpen__bron_url__in=value).distinct()
         return queryset
 
     def get_actieve_meldingen(self, queryset, name, value):
@@ -185,8 +295,46 @@ class MeldingFilter(BasisFilter):
         ]
 
 
+class MeldingPreFilter(MeldingFilter):
+    pre_filter = True
+
+    class Meta:
+        model = Melding
+        fields = [
+            "aangemaakt_op",
+            "aangepast_op",
+            "origineel_aangemaakt",
+            "afgesloten_op",
+        ]
+
+
 class RelatedOrderingFilter(rest_filters.OrderingFilter):
     _max_related_depth = 3
+
+    def filter_queryset(self, request, queryset, view):
+        ordering = self.get_ordering(request, queryset, view)
+
+        if ordering:
+            straatnaam_ordering = ["straatnaam", "-straatnaam"]
+            onderwerp_ordering = ["onderwerp", "-onderwerp"]
+            if list(set(ordering) & set(onderwerp_ordering)):
+                onderwerpen = OnderwerpAlias.objects.filter(
+                    meldingen_voor_onderwerpen=OuterRef("pk")
+                )
+                queryset = queryset.annotate(
+                    onderwerp=Subquery(onderwerpen.values("response_json__name")[:1])
+                )
+            if list(set(ordering) & set(straatnaam_ordering)):
+                locaties = Locatie.objects.filter(
+                    melding=OuterRef("pk"),
+                ).order_by("-gewicht")
+                queryset = queryset.annotate(
+                    straatnaam=Subquery(locaties.values("straatnaam")[:1])
+                )
+            qs = queryset.order_by(*ordering)
+            return qs
+
+        return queryset
 
     @staticmethod
     def _get_verbose_name(field: models.Field, non_verbose_name: str) -> str:
@@ -229,14 +377,15 @@ class RelatedOrderingFilter(rest_filters.OrderingFilter):
         self, queryset: models.QuerySet, view, context: dict = None
     ) -> List[tuple]:
         valid_fields = getattr(view, "ordering_fields", self.ordering_fields)
-        if not valid_fields == "__all_related__":
+        if valid_fields != "__all_related__":
             if not context:
                 context = {}
             valid_fields = super().get_valid_fields(queryset, view, context)
         else:
             valid_fields = [
                 *self._retrieve_all_related_fields(
-                    queryset.model._meta.get_fields(), queryset.model
+                    queryset.model._meta.get_fields(),
+                    queryset.model,
                 ),
                 *[(key, key.title().split("__")) for key in queryset.query.annotations],
             ]
@@ -291,3 +440,17 @@ class TrigramSimilaritySearchFilter(SearchFilter):
         return queryset.annotate(similarity=Greatest(*conditions)).filter(
             similarity__gte=trigram_similarity
         )
+
+
+class SpecificatieFilterSet(filters.FilterSet):
+    naam = MultipleValueFilter(field_class=CharField, method="get_naam")
+    is_verwijderd = filters.BooleanFilter(
+        field_name="verwijderd_op", lookup_expr="isnull", exclude=True
+    )
+
+    def get_naam(self, queryset, name, value):
+        if value:
+            return queryset.filter(
+                naam__in=value,
+            )
+        return queryset

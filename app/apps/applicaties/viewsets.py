@@ -10,7 +10,5 @@ class TaakapplicatieViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = Applicatie.objects.all()
 
-    permission_classes = ()
-
     serializer_class = TaakapplicatieSerializer
     lookup_field = "uuid"

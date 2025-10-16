@@ -1,4 +1,10 @@
-<iframe id="sso_frame" style="position: absolute; width: 1px; height: 1px; inset: -9999px; display: none;" src="{{ CHECK_SESSION_IFRAME }}?origin={{ ABSOLUTE_ROOT }}"></iframe>
+<iframe id="sso_frame"
+        style="position: absolute;
+               width: 1px;
+               height: 1px;
+               inset: -9999px;
+               display: none"
+        src="{{ CHECK_SESSION_IFRAME }}?origin={{ ABSOLUTE_ROOT }}"></iframe>
 <script>
     console.log("{{CHECK_SESSION_IFRAME}}")
     window.addEventListener("message", function(e){

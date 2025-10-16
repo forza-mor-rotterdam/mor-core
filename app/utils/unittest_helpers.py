@@ -72,9 +72,7 @@ def get_test_user():
     """
     Creates and returns a test user
     """
-    return get_user_model().objects.get_or_create(
-        username=settings.DJANGO_TEST_USERNAME
-    )[0]
+    return get_user_model().objects.get_or_create(email=settings.DJANGO_TEST_EMAIL)[0]
 
 
 def get_authenticated_client():

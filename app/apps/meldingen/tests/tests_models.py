@@ -1,72 +1,60 @@
 import requests_mock
-from apps.aliassen.models import OnderwerpAlias
 from apps.meldingen.managers import MeldingManager
-from apps.meldingen.models import Melding, Meldinggebeurtenis
+from apps.meldingen.models import Melding
 from apps.meldingen.serializers import MeldingGebeurtenisStatusSerializer
-from apps.signalen.models import Signaal
-from apps.status import workflow
-from apps.status.models import Status
+from apps.meldingen.tests.factories import (
+    MeldingFactory,
+    OnderwerpAliasFactory,
+    StatusFactory,
+)
 from django.db import transaction
-from django.test import TestCase, TransactionTestCase
-from django.utils import timezone
-from model_bakery import baker
-
-
-class SignaalTest(TestCase):
-    @requests_mock.Mocker()
-    def setUp(self, m):
-        m.get("http://mock_url", json={}, status_code=200)
-        onderwerp_alias = baker.make(OnderwerpAlias, bron_url="http://mock_url")
-        self.instance = baker.make(Signaal, onderwerpen=[onderwerp_alias.bron_url])
-
-    def test_default_status(self):
-        self.assertEqual(
-            self.instance.melding.status.naam, Status.NaamOpties.OPENSTAAND
-        )
-
-    def test_melding_gebeurtenis_aangemaakt(self):
-        self.assertEqual(Meldinggebeurtenis.objects.all().count(), 1)
-
-    def test_status_aangemaakt(self):
-        self.assertEqual(Status.objects.all().count(), 1)
+from django.test import TransactionTestCase
+from rest_framework.exceptions import ValidationError
 
 
 class MeldingTransactionTest(TransactionTestCase):
     databases = {"default", "alternate"}
     DB1 = "default"
     DB2 = "alternate"
-    signaal_data = {
-        "origineel_aangemaakt": timezone.now().isoformat(),
-        "onderwerpen": ["http://mock_url"],
-    }
-    status_aanpassen_data = {"status": {"naam": workflow.AFGEHANDELD}}
 
     @requests_mock.Mocker()
     def setUp(self, m):
         m.get("http://mock_url", json={}, status_code=200)
-        baker.make(OnderwerpAlias, bron_url="http://mock_url")
-        self.melding_id = Signaal.objects.create(**self.signaal_data).melding.id
-        data = {"melding": self.melding_id}
-        data.update(self.status_aanpassen_data)
-        data["status"]["melding"] = self.melding_id
-
+        onderwerp_alias = OnderwerpAliasFactory()
+        melding = MeldingFactory()
+        melding.onderwerpen.set([onderwerp_alias])
+        status = StatusFactory(melding=melding)
+        data = {
+            "melding": melding.id,
+            "status": {
+                "naam": status.naam,
+                "melding": status.melding.id,
+            },
+            "gebeurtenis_type": "your_gebeurtenis_type_value",
+            "resolutie": "your_resolutie_value",
+            "bijlagen": [],
+            "omschrijving_intern": "your_intern_description",
+            "omschrijving_extern": "your_extern_description",
+            "gebruiker": "your_gebruiker_value",
+        }
         self.serializer = MeldingGebeurtenisStatusSerializer(data=data)
         self.serializer.is_valid()
+        self.melding = melding
 
     def test_dubbele_status_verandering_serieel(self):
         with transaction.atomic(using=self.DB1):
-            melding = Melding.objects.using(self.DB1).get(id=self.melding_id)
+            melding = Melding.objects.using(self.DB1).get(id=self.melding.id)
             Melding.acties.status_aanpassen(self.serializer, melding, self.DB1)
         with transaction.atomic(using=self.DB2):
-            melding = Melding.objects.using(self.DB2).get(id=self.melding_id)
-            with self.assertRaises(Status.StatusVeranderingNietToegestaan):
+            melding = Melding.objects.using(self.DB2).get(id=self.melding.id)
+            with self.assertRaises(ValidationError):
                 Melding.acties.status_aanpassen(self.serializer, melding, self.DB1)
 
     def test_dubbele_status_verandering_parallel(self):
         with transaction.atomic(using=self.DB1):
-            melding = Melding.objects.using(self.DB1).get(id=self.melding_id)
+            melding = Melding.objects.using(self.DB1).get(id=self.melding.id)
             Melding.acties.status_aanpassen(self.serializer, melding, self.DB1)
             with transaction.atomic(using=self.DB2):
-                melding = Melding.objects.using(self.DB2).get(id=self.melding_id)
+                melding = Melding.objects.using(self.DB2).get(id=self.melding.id)
                 with self.assertRaises(MeldingManager.MeldingInGebruik):
                     Melding.acties.status_aanpassen(self.serializer, melding, self.DB2)

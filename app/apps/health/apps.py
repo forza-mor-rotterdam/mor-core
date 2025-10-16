@@ -7,6 +7,10 @@ class HealthConfig(AppConfig):
     verbose_name = "Health"
 
     def ready(self):
-        from apps.health.custom_checks import ApplicatieTokenAPIHealthCheck
+        from apps.health.custom_checks import (
+            ApplicatieTokenAPIHealthCheck,
+            ReadonlyDatabaseBackend,
+        )
 
         plugin_dir.register(ApplicatieTokenAPIHealthCheck)
+        plugin_dir.register(ReadonlyDatabaseBackend)

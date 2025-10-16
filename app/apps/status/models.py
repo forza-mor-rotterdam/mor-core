@@ -1,3 +1,4 @@
+from apps.status.querysets import StatusQuerySet
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
 from utils.models import BasisModel
@@ -9,6 +10,9 @@ class Status(BasisModel):
         IN_BEHANDELING = "in_behandeling", "In behandeling"
         CONTROLE = "controle", "Controle"
         AFGEHANDELD = "afgehandeld", "Afgehandeld"
+        GEANNULEERD = "geannuleerd", "Geannuleerd"
+        WACHTEN_MELDER = "wachten_melder", "Wachten melder"
+        PAUZE = "pauze", "Pauze"
 
     naam = models.CharField(
         max_length=50,
@@ -21,6 +25,8 @@ class Status(BasisModel):
         on_delete=models.CASCADE,
     )
 
+    objects = StatusQuerySet.as_manager()
+
     class Meta:
         ordering = ("-aangemaakt_op",)
 
@@ -31,26 +37,57 @@ class Status(BasisModel):
     def __str__(self) -> str:
         return f"{self.naam}({self.pk})"
 
-    def volgende_statussen(self):
-        naam_opties = [no[0] for no in Status.NaamOpties.choices]
-        if self.naam not in naam_opties:
-            return naam_opties
+    def is_gepauzeerd(self):
+        return self.naam in [self.NaamOpties.WACHTEN_MELDER, self.NaamOpties.PAUZE]
 
+    def is_afgesloten(self):
+        return self.naam in [self.NaamOpties.GEANNULEERD, self.NaamOpties.AFGEHANDELD]
+
+    def volgende_statussen(self):
         match self.naam:
-            case Status.NaamOpties.IN_BEHANDELING:
-                return [
-                    Status.NaamOpties.CONTROLE,
-                    Status.NaamOpties.AFGEHANDELD,
-                ]
             case Status.NaamOpties.OPENSTAAND:
                 return [
                     Status.NaamOpties.IN_BEHANDELING,
                     Status.NaamOpties.AFGEHANDELD,
+                    Status.NaamOpties.GEANNULEERD,
+                    Status.NaamOpties.WACHTEN_MELDER,
+                    Status.NaamOpties.PAUZE,
+                ]
+            case Status.NaamOpties.IN_BEHANDELING:
+                return [
+                    Status.NaamOpties.CONTROLE,
+                    Status.NaamOpties.AFGEHANDELD,
+                    Status.NaamOpties.GEANNULEERD,
+                    Status.NaamOpties.WACHTEN_MELDER,
+                    Status.NaamOpties.PAUZE,
                 ]
             case Status.NaamOpties.CONTROLE:
                 return [
                     Status.NaamOpties.IN_BEHANDELING,
                     Status.NaamOpties.AFGEHANDELD,
+                    Status.NaamOpties.GEANNULEERD,
+                    Status.NaamOpties.WACHTEN_MELDER,
+                    Status.NaamOpties.PAUZE,
+                ]
+            case Status.NaamOpties.PAUZE:
+                return [
+                    Status.NaamOpties.OPENSTAAND,
+                    Status.NaamOpties.AFGEHANDELD,
+                    Status.NaamOpties.GEANNULEERD,
+                ]
+            case Status.NaamOpties.WACHTEN_MELDER:
+                return [
+                    Status.NaamOpties.OPENSTAAND,
+                    Status.NaamOpties.AFGEHANDELD,
+                    Status.NaamOpties.GEANNULEERD,
+                ]
+            case Status.NaamOpties.AFGEHANDELD:
+                return [
+                    Status.NaamOpties.OPENSTAAND,
+                ]
+            case Status.NaamOpties.GEANNULEERD:
+                return [
+                    Status.NaamOpties.OPENSTAAND,
                 ]
             case _:
                 return []
@@ -63,7 +100,13 @@ class Status(BasisModel):
         huidige_status = self.melding.status.naam if self.melding.status else ""
         nieuwe_status = self.naam
 
-        if nieuwe_status == huidige_status:
+        if (
+            nieuwe_status == huidige_status
+            and not (huidige_status == "controle" and nieuwe_status == "controle")
+            and not (
+                huidige_status == "in_behandeling" and nieuwe_status == "in_behandeling"
+            )
+        ):
             error_msg = "Status verandering niet toegestaan: van `{from_state}` naar `{to_state}`.".format(
                 from_state=huidige_status, to_state=nieuwe_status
             )

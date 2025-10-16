@@ -1,4 +1,3 @@
-from apps.aliassen.serializers import OnderwerpAliasSerializer
 from apps.applicaties.models import Applicatie
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -20,7 +19,6 @@ class TaakapplicatieLinksSerializer(serializers.Serializer):
 
 class TaakapplicatieSerializer(serializers.ModelSerializer):
     _links = TaakapplicatieLinksSerializer(source="*", read_only=True)
-    onderwerpen = OnderwerpAliasSerializer(many=True)
 
     class Meta:
         model = Applicatie
@@ -29,14 +27,10 @@ class TaakapplicatieSerializer(serializers.ModelSerializer):
             "uuid",
             "naam",
             "basis_url",
-            "onderwerpen",
-            "taaktypes",
         )
         read_only_fields = (
             "_links",
             "uuid",
             "naam",
             "basis_url",
-            "onderwerpen",
-            "taaktypes",
         )
