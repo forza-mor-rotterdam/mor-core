@@ -243,6 +243,18 @@ retry_celery_task_admin_action.short_description = "Retry Task"
 
 
 class CustomTaskResultAdmin(TaskResultAdmin):
+    list_display = (
+        "id",
+        "task_id",
+        "task_name",
+        "status",
+        "result",
+        "date_created",
+        "date_done",
+        "date_started",
+        "task_args",
+        "task_kwargs",
+    )
     list_filter = (
         "status",
         "date_created",
