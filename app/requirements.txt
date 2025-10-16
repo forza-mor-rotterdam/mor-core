@@ -1,30 +1,30 @@
-asgiref==3.6.0
-certifi==2022.12.7
-charset-normalizer==3.0.1
-debugpy==1.6.3
+asgiref==3.10.0
+certifi==2025.10.5
+charset-normalizer==3.4.4
+debugpy==1.8.17
 defusedxml==0.7.1
-Django==4.2.15
-django-cors-headers==3.13.0
-django-csp==3.6
+Django==5.2.5
+django-cors-headers==4.9.0
+django-csp==4.0
 django-db-schema-renderer==0.1.2
 django-extensions==3.2.1
-django-filter==22.1
-django-health-check==3.17.0
-django-permissions-policy==4.14.0
+django-filter==25.2
+django-health-check==3.20.0
+django-permissions-policy==4.28.0
 django-spaghetti-and-meatballs==0.4.2
-djangorestframework==3.16.0
-djangorestframework-csv==2.1.1
-djangorestframework-gis==1.0
+djangorestframework==3.16.1
+djangorestframework-csv==3.0.2
+djangorestframework-gis==1.2.0
 djangorestframework-xml==2.0.0
-drf-extensions==0.7.1
-drf-writable-nested==0.7.0
+drf-extensions==0.8.0
+drf-writable-nested==0.7.2
 drf-spectacular==0.28.0
-drf_extra_fields==3.4.1
+drf-extra-fields==3.7.0
 drf_base64
 factory-boy==3.2.1
 filetype==1.2.0
 idna==3.4
-model-bakery==1.4.0
+model-bakery==1.20.5
 nh3==0.2.18
 Pillow==9.4.0
 pillow-heif==0.13.0
@@ -32,7 +32,7 @@ psycopg2>=2.9.5
 graphviz==0.20.1
 pygraphviz==1.11
 pytz==2022.7.1
-requests==2.31.0
+requests==2.32.5
 six==1.16.0
 sqlparse==0.4.4
 unicodecsv==0.14.1
@@ -54,7 +54,7 @@ PyJWT<2.4.0
 django-session-timeout-joinup==1.0.0
 
 # development
-django-debug-toolbar==5.0.1
+django-debug-toolbar==6.0.0
 Faker==8.13.2
 
 # tests
