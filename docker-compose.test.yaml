@@ -1,33 +1,28 @@
-version: "3.5"
 services:
   app:
     build: ./app
-    # hostname: core
-    # image: core
     ports:
-      - 8080:8000
+      - 8002:8000
       - 5678:5678
     env_file:
       - .env.test
-    # volumes:
-    #   - ./core:/app
-    #   - ./media:/media
     depends_on:
-      database:
+      redis:
+        condition: service_started
+      test_database:
         condition: service_healthy
     links:
-      - database
+      - test_database
     networks:
-      - mor_network
+      - mor_test_network
     stdin_open: true
     tty: true
-    # command: ["bash", "/app/deploy/docker-entrypoint.development.sh"]
 
-  database:
-    image: postgis/postgis:11-3.3
+  test_database:
+    image: postgis/postgis:16-3.4
     shm_size: '1024m'
     ports:
-      - "5432:5433"
+      - "5432"
     env_file:
       - .env.test
     healthcheck:
@@ -35,9 +30,18 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    volumes:
+      - ./bin/init-database.sh:/docker-entrypoint-initdb.d/init-database.sh
     networks:
-      - mor_network
+      - mor_test_network
+
+  redis:
+    image: redis
+    networks:
+      - mor_test_network
+    ports:
+      - "6379"
 
 networks:
-  mor_network:
+  mor_test_network:
     external: true

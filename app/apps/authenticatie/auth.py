@@ -1,4 +1,7 @@
+from config.context import db
+from django.conf import settings
 from mozilla_django_oidc import auth
+from rest_framework.authentication import TokenAuthentication as DRFTokenAuthentication
 
 
 class OIDCAuthenticationBackend(auth.OIDCAuthenticationBackend):
@@ -9,6 +12,7 @@ class OIDCAuthenticationBackend(auth.OIDCAuthenticationBackend):
         # copy name from the claims, if not set fallback to email as first name and empty last name
         user.first_name = claims.get("given_name", claims.get("email"))
         user.last_name = claims.get("family_name", "")
+
         user.save()
 
         return user
@@ -40,6 +44,14 @@ class OIDCAuthenticationBackend(auth.OIDCAuthenticationBackend):
         # user_response.raise_for_status()
 
         # Make sure always an email claim is available, if not set fallback to upn or username
-        payload.update({"email": payload.get("email", payload.get("upn", payload.get("username")))})
+        payload.update(
+            {"email": payload.get("email", payload.get("upn", payload.get("username")))}
+        )
 
         return payload
+
+
+class TokenAuthentication(DRFTokenAuthentication):
+    def authenticate_credentials(self, key):
+        with db(settings.READONLY_DATABASE_KEY):
+            return super().authenticate_credentials(key)

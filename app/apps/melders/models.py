@@ -12,3 +12,11 @@ class Melder(BasisModel):
     class Meta:
         verbose_name = "Melder"
         verbose_name_plural = "Melders"
+
+    def get_zoek_tekst(self):
+        return {
+            "voornaam_achternaam": f"{self.voornaam or ''} {self.achternaam or ''}".strip(),
+            "email": f"{self.email or ''}".strip(),
+            "naam": f"{self.naam or ''}".strip(),
+            "telefoonnummer": f"{self.telefoonnummer or ''}".strip(),
+        }

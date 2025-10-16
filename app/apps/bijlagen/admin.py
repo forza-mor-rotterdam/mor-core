@@ -1,4 +1,4 @@
-from apps.bijlagen.tasks import task_aanmaken_afbeelding_versies
+from apps.bijlagen.tasks import task_aanmaken_afbeelding_versies, task_bijlage_opruimen
 from apps.meldingen.models import Bijlage
 from django.contrib import admin
 
@@ -9,18 +9,44 @@ def action_aanmaken_afbeelding_versies(modeladmin, request, queryset):
         task_aanmaken_afbeelding_versies.delay(bijlage.id)
 
 
+@admin.action(description="Bijlage opruimen")
+def action_bijlage_opruimen(modeladmin, request, queryset):
+    for bijlage in queryset.all():
+        task_bijlage_opruimen.delay(bijlage.id)
+
+
 class BijlageAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "uuid",
+        "bestand_hash",
         "aangemaakt_op",
-        "bestand",
         "is_afbeelding",
         "mimetype",
-        "content_object",
+        "content_type",
+        "object_id",
+        "bestand",
         "afbeelding",
+        "afbeelding_verkleind",
+        "opgeruimd_op",
     )
-    actions = (action_aanmaken_afbeelding_versies,)
+    list_filter = ("content_type",)
+    actions = (
+        action_aanmaken_afbeelding_versies,
+        action_bijlage_opruimen,
+    )
+    readonly_fields = (
+        "uuid",
+        "aangemaakt_op",
+        "aangepast_op",
+    )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.prefetch_related(
+            "content_object",
+            "content_type",
+        )
 
 
 admin.site.register(Bijlage, BijlageAdmin)
