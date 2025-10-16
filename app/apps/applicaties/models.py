@@ -163,6 +163,14 @@ class Applicatie(BasisModel):
         return {}
 
     def notificatie_melding_afgesloten(self, signaal_url):
+        if (
+            not self.applicatie_gebruiker_naam
+            or not self.applicatie_gebruiker_wachtwoord
+        ):
+            logger.warning(
+                f"API Service(notificatie_melding_afgesloten): Voor de applicatie '{self.naam}' zijn geen nog credentials ingesteld"
+            )
+            return {}
         api_service = self.api_service()
         api_service_call = getattr(api_service, "notificatie_melding_afgesloten", None)
         if callable(api_service_call):
