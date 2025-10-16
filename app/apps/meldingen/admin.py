@@ -38,7 +38,7 @@ def action_notificatie_voor_signaal_melding_afgesloten(modeladmin, request, quer
             and melding.status.naam != Status.NaamOpties.GEANNULEERD
         ):
             for signaal in melding.signalen_voor_melding.all():
-                task_notificatie_voor_signaal_melding_afgesloten.delay(signaal.id)
+                task_notificatie_voor_signaal_melding_afgesloten.delay(signaal.uuid)
 
 
 @admin.action(description="Melding bijlages opruimen")
