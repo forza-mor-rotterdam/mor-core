@@ -1,3 +1,4 @@
+from apps.applicaties.models import Applicatie
 from apps.meldingen.models import Melding
 from django.conf import settings
 from django.db import connections
@@ -22,17 +23,21 @@ class CustomCollector(object):
             "Taakopdracht aantallen zonder taak_url",
             labels=[
                 "applicatie_naam",
-                "applicatie_uuid",
             ],
         )
-        total_taken = []
+        taakapplicatie_results = []
+
+        taakapplicaties = Applicatie.objects.filter(
+            applicatie_type=Applicatie.ApplicatieTypes.TAAKAPPLICATIE
+        ).order_by("naam")
 
         sql = 'SELECT "applicaties_applicatie"."uuid", "applicaties_applicatie"."naam", \
             COUNT("taken_taakopdracht"."uuid") AS "count" \
             FROM "applicaties_applicatie" \
                 JOIN "taken_taakopdracht" ON ("taken_taakopdracht"."applicatie_id" = "applicaties_applicatie"."id") \
                 WHERE  \
-                "taken_taakopdracht"."taak_url" IS NULL  \
+                "applicaties_applicatie"."applicatie_type" = \'taakapplicatie\' \
+                AND "taken_taakopdracht"."taak_url" IS NULL  \
                 AND "taken_taakopdracht"."verwijderd_op" IS NULL \
                 AND "taken_taakopdracht"."afgesloten_op" IS NULL \
             GROUP BY "applicaties_applicatie"."uuid", 2 \
@@ -41,15 +46,23 @@ class CustomCollector(object):
 
         with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
             cursor.execute(sql)
-            total_taken = self.dictfetchall(cursor)
+            taakapplicatie_results = self.dictfetchall(cursor)
 
-        for taak in total_taken:
+        taakapplicatie_results_by_uuid = {
+            applicatie["uuid"]: applicatie for applicatie in taakapplicatie_results
+        }
+
+        for taakapplicatie in taakapplicaties:
+            result = taakapplicatie_results_by_uuid.get(
+                taakapplicatie.uuid,
+                {
+                    "naam": taakapplicatie.naam,
+                    "count": 0,
+                },
+            )
             c.add_metric(
-                (
-                    taak["naam"],
-                    str(taak["uuid"]),
-                ),
-                taak["count"],
+                (result["naam"],),
+                result["count"],
             )
 
         return c
@@ -62,7 +75,11 @@ class CustomCollector(object):
                 "applicatie_naam",
             ],
         )
-        total_taken = []
+        taakapplicatie_results = []
+
+        taakapplicaties = Applicatie.objects.filter(
+            applicatie_type=Applicatie.ApplicatieTypes.TAAKAPPLICATIE
+        ).order_by("naam")
 
         sql = 'SELECT "applicaties_applicatie"."uuid", "applicaties_applicatie"."naam", \
             COUNT("taken_taakopdracht"."uuid") AS "count" \
@@ -70,7 +87,8 @@ class CustomCollector(object):
                 JOIN "taken_taakopdracht" ON ("taken_taakopdracht"."applicatie_id" = "applicaties_applicatie"."id") \
                 LEFT OUTER JOIN "django_celery_results_taskresult" ON ("taken_taakopdracht"."task_taak_aanmaken_id" = "django_celery_results_taskresult"."id") \
                 WHERE  \
-                "taken_taakopdracht"."taak_url" IS NULL  \
+                "applicaties_applicatie"."applicatie_type" = \'taakapplicatie\' \
+                AND "taken_taakopdracht"."taak_url" IS NULL  \
                 AND "taken_taakopdracht"."verwijderd_op" IS NULL \
                 AND "taken_taakopdracht"."afgesloten_op" IS NULL \
                 AND ("django_celery_results_taskresult"."status" = ANY(ARRAY[\'FAILED\', \'SUCCESS\'])  \
@@ -81,12 +99,23 @@ class CustomCollector(object):
 
         with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
             cursor.execute(sql)
-            total_taken = self.dictfetchall(cursor)
+            taakapplicatie_results = self.dictfetchall(cursor)
 
-        for taak in total_taken:
+        taakapplicatie_results_by_uuid = {
+            applicatie["uuid"]: applicatie for applicatie in taakapplicatie_results
+        }
+
+        for taakapplicatie in taakapplicaties:
+            result = taakapplicatie_results_by_uuid.get(
+                taakapplicatie.uuid,
+                {
+                    "naam": taakapplicatie.naam,
+                    "count": 0,
+                },
+            )
             c.add_metric(
-                (taak["naam"],),
-                taak["count"],
+                (result["naam"],),
+                result["count"],
             )
 
         return c
