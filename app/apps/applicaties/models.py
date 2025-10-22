@@ -90,16 +90,18 @@ class Applicatie(BasisModel):
     @classmethod
     def vind_applicatie_obv_uri(cls, uri):
         url_o = urlparse(uri)
-        applicatie = Applicatie.objects.filter(
+        applicaties = Applicatie.objects.filter(
             basis_url=f"{url_o.scheme}://{url_o.netloc}"
-        ).first()
-        if not applicatie:
-            applicatie = Applicatie.objects.filter(
+        )
+        if not applicaties:
+            applicaties = Applicatie.objects.filter(
                 valide_basis_urls__contains=[f"{url_o.scheme}://{url_o.netloc}"]
-            ).first()
-        if not applicatie:
-            logger.warning(f"Er is geen Applicatie gevonden bij deze url: url={uri}")
-        return applicatie
+            )
+        if not applicaties:
+            raise Applicatie.ApplicatieWerdNietGevondenFout(
+                f"De applicatie voor deze uri kon niet worden gevonden: uri={uri}"
+            )
+        return applicaties[0]
 
     def encrypt_applicatie_gebruiker_wachtwoord(self, wachtwoord_decrypted):
         self.applicatie_gebruiker_wachtwoord = encrypt_gebruiker_wachtwoord(

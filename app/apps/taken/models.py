@@ -172,6 +172,9 @@ class Taakopdracht(BasisModel):
         ordering = ("-aangemaakt_op",)
         verbose_name = "Taakopdracht"
         verbose_name_plural = "Taakopdrachten"
+        indexes = [
+            models.Index(fields=["uuid"], name="taakopdracht_uuid_idx"),
+        ]
 
     @property
     def is_voltooid(self):
@@ -191,9 +194,10 @@ class Taakopdracht(BasisModel):
         task_taak_aanmaken_taskresult = task_taak_aanmaken_v2.delay(
             taakopdracht_uuid=str(self.uuid),
         )
-        return TaskResult.objects.filter(
+        taskresults = TaskResult.objects.filter(
             task_id=task_taak_aanmaken_taskresult.task_id
-        ).first()
+        )
+        return taskresults[0] if taskresults else None
 
     def herstart_task_taak_aanmaken(self):
         if not self.task_taak_aanmaken:

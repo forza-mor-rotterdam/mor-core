@@ -87,12 +87,12 @@ def afgesloten_handler(sender, melding, taakopdrachten=[], *args, **kwargs):
         notificatie_type="afgesloten",
     )
     for taakopdracht in taakopdrachten:
-        taakgebeurtenis = taakopdracht.taakgebeurtenissen_voor_taakopdracht.filter(
+        taakgebeurtenissen = taakopdracht.taakgebeurtenissen_voor_taakopdracht.filter(
             resolutie=Taakgebeurtenis.ResolutieOpties.GEANNULEERD
-        ).first()
+        )
         task_taak_verwijderen.delay(
             taakopdracht_id=taakopdracht.id,
-            gebruiker=taakgebeurtenis.gebruiker if taakgebeurtenis else None,
+            gebruiker=taakgebeurtenissen[0].gebruiker if taakgebeurtenissen else None,
         )
 
     if melding.status.naam == Status.NaamOpties.AFGEHANDELD:

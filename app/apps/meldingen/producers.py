@@ -84,6 +84,7 @@ class TaakopdrachtVeranderdProducer(BasisProducer):
 
         routing_key = f"{self.entity}.{self.uuid}.{self.action}"
 
+        onderwerpen = melding.onderwerpen.all()
         serializer = ProducerMessageMeldingTaakopdrachtSerializer(
             {
                 "entity": self.entity,
@@ -91,7 +92,7 @@ class TaakopdrachtVeranderdProducer(BasisProducer):
                 "melding": melding,
                 "uuid": melding.uuid,
                 "taakopdracht": taakgebeurtenis.taakopdracht,
-                "onderwerp": melding.onderwerpen.first(),
+                "onderwerp": onderwerpen[0] if onderwerpen else None,
                 "signalen": melding.signalen_voor_melding.all(),
                 "data": {"user": taakgebeurtenis.gebruiker},
             }

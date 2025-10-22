@@ -173,10 +173,8 @@ def task_taak_aanmaken_v2(self, taakopdracht_uuid):
         ):
             return f"De taakopdracht is nog niet gesynchroniseerd({taakopdracht.task_taak_aanmaken.status}) met de taakapplicatie({taakopdracht.applicatie.naam}): taakopdracht_uuid: {taakopdracht_uuid}"
 
-        eerste_taakgebeurtenis = (
-            taakopdracht.taakgebeurtenissen_voor_taakopdracht.order_by(
-                "aangemaakt_op"
-            ).first()
+        taakgebeurtenissen = taakopdracht.taakgebeurtenissen_voor_taakopdracht.order_by(
+            "aangemaakt_op"
         )
 
         taakapplicatie_data = {
@@ -185,9 +183,13 @@ def task_taak_aanmaken_v2(self, taakopdracht_uuid):
             "bericht": taakopdracht.bericht,
             "taakopdracht": taakopdracht.get_absolute_url(),
             "melding": taakopdracht.melding.get_absolute_url(),
-            "gebruiker": eerste_taakgebeurtenis.gebruiker,
+            "gebruiker": taakgebeurtenissen[0].gebruiker
+            if taakgebeurtenissen
+            else None,
             "additionele_informatie": taakopdracht.additionele_informatie,
-            "omschrijving_intern": eerste_taakgebeurtenis.omschrijving_intern,
+            "omschrijving_intern": taakgebeurtenissen[0].omschrijving_intern
+            if taakgebeurtenissen
+            else None,
         }
         taak_aanmaken_response = taakopdracht.applicatie.taak_aanmaken(
             taakapplicatie_data
@@ -205,11 +207,11 @@ def task_taak_aanmaken_v2(self, taakopdracht_uuid):
         )
         taakopdracht.taak_url = taak_url
         taakopdracht.save(update_fields=["taak_url"])
-        if taak_aanmaken_response.get("aangemaakt_op"):
-            eerste_taakgebeurtenis.aangemaakt_op = datetime.fromisoformat(
+        if taak_aanmaken_response.get("aangemaakt_op") and taakgebeurtenissen:
+            taakgebeurtenissen[0].aangemaakt_op = datetime.fromisoformat(
                 taak_aanmaken_response.get("aangemaakt_op")
             )
-            eerste_taakgebeurtenis.save(update_fields=["aangemaakt_op"])
+            taakgebeurtenissen[0].save(update_fields=["aangemaakt_op"])
 
     return f"De taak is aangemaakt in {taakopdracht.applicatie.naam}, o.b.v. taakopdracht met uuid: {taakopdracht_uuid}, de taakapplicatie taak url is: {taakopdracht.taak_url}."
 
