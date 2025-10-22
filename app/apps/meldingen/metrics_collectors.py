@@ -33,7 +33,8 @@ class CustomCollector(object):
                 JOIN "taken_taakopdracht" ON ("taken_taakopdracht"."applicatie_id" = "applicaties_applicatie"."id") \
                 WHERE  \
                 "taken_taakopdracht"."taak_url" IS NULL  \
-                OR ("taken_taakopdracht"."taak_url" = \'\') IS TRUE  \
+                AND "taken_taakopdracht"."verwijderd_op" IS NULL \
+                AND "taken_taakopdracht"."afgesloten_op" IS NULL \
             GROUP BY "applicaties_applicatie"."uuid", 2 \
             ORDER BY "applicaties_applicatie"."uuid" ASC; \
         '
@@ -69,8 +70,9 @@ class CustomCollector(object):
                 JOIN "taken_taakopdracht" ON ("taken_taakopdracht"."applicatie_id" = "applicaties_applicatie"."id") \
                 LEFT OUTER JOIN "django_celery_results_taskresult" ON ("taken_taakopdracht"."task_taak_aanmaken_id" = "django_celery_results_taskresult"."id") \
                 WHERE  \
-                ("taken_taakopdracht"."taak_url" IS NULL  \
-                OR ("taken_taakopdracht"."taak_url" = \'\') IS TRUE)  \
+                "taken_taakopdracht"."taak_url" IS NULL  \
+                AND "taken_taakopdracht"."verwijderd_op" IS NULL \
+                AND "taken_taakopdracht"."afgesloten_op" IS NULL \
                 AND ("django_celery_results_taskresult"."status" = ANY(ARRAY[\'FAILED\', \'SUCCESS\'])  \
                 OR "taken_taakopdracht"."task_taak_aanmaken_id" IS NULL)  \
             GROUP BY "applicaties_applicatie"."uuid", 2 \
