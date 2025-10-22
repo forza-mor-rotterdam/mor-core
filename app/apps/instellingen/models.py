@@ -7,10 +7,10 @@ class Instelling(BasisModel):
 
     @classmethod
     def actieve_instelling(cls):
-        eerst_gevonden_instelling = cls.objects.first()
-        if not eerst_gevonden_instelling:
+        instellingen = cls.objects.all()
+        if not instellingen:
             raise Exception("Er zijn nog instellingen aangemaakt")
-        return eerst_gevonden_instelling
+        return instellingen[0]
 
     def valideer_url(self, veld, url):
         if veld not in ("onderwerpen_basis_url",):

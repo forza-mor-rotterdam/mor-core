@@ -84,10 +84,10 @@ class MeldingManager(models.Manager):
                     origineel_aangemaakt=signaal.origineel_aangemaakt,
                     urgentie=signaal.urgentie,
                 )
-                eerste_onderwerp = signaal.onderwerpen.first()
-                if eerste_onderwerp:
-                    melding.onderwerp = eerste_onderwerp.bron_url
-                for onderwerp in signaal.onderwerpen.all():
+                onderwerpen = signaal.onderwerpen.all()
+                if onderwerpen:
+                    melding.onderwerp = onderwerpen[0].bron_url
+                for onderwerp in onderwerpen:
                     melding.onderwerpen.add(onderwerp)
                     onderwerp_response = OnderwerpenService().get_onderwerp(
                         onderwerp.bron_url
@@ -98,22 +98,23 @@ class MeldingManager(models.Manager):
                 for locatie in signaal.locaties_voor_signaal.all():
                     melding.locaties_voor_melding.add(locatie)
 
-                first_locatie = signaal.locaties_voor_signaal.filter(
+                locaties = signaal.locaties_voor_signaal.filter(
                     locatie_type__in=["graf", "adres"],
-                ).first()
-                if first_locatie:
-                    melding.referentie_locatie = first_locatie
-                    first_locatie.primair = True
-                    first_locatie.gewicht = 0.25
-                    first_locatie.save()
+                )
+                if locaties:
+                    melding.referentie_locatie = locaties[0]
+                    locaties[0].primair = True
+                    locaties[0].gewicht = 0.25
+                    locaties[0].save()
 
                 status = Status()
                 status.melding = melding
                 status.save()
 
                 melding.status = status
-                if not melding.thumbnail_afbeelding and signaal.bijlagen:
-                    melding.thumbnail_afbeelding = signaal.bijlagen.first()
+                bijlagen = signaal.bijlagen.all()
+                if not melding.thumbnail_afbeelding and bijlagen:
+                    melding.thumbnail_afbeelding = bijlagen[0]
                 melding.save()
                 signaal.melding = melding
                 signaal.save()
@@ -343,13 +344,13 @@ class MeldingManager(models.Manager):
                     raise MeldingManager.MeldingInGebruik(
                         f"De melding is op dit moment in gebruik, probeer het later nog eens. melding nummer: {melding.id}, melding uuid: {melding.uuid}"
                     )
+
+                meldinggebeurtenis_bijlagen = meldinggebeurtenis.bijlagen.reverse()
                 if (
                     not locked_melding.thumbnail_afbeelding
-                    and meldinggebeurtenis.bijlagen
+                    and meldinggebeurtenis_bijlagen
                 ):
-                    locked_melding.thumbnail_afbeelding = (
-                        meldinggebeurtenis.bijlagen.last()
-                    )
+                    locked_melding.thumbnail_afbeelding = meldinggebeurtenis_bijlagen[0]
                 if meldinggebeurtenis.locatie:
                     locked_melding.referentie_locatie = meldinggebeurtenis.locatie
                 locked_melding.save()
@@ -417,18 +418,11 @@ class MeldingManager(models.Manager):
 
             taak_data = {}
             taak_data.update(serializer.validated_data)
-            # taakr_taaktype_url = Applicatie.vind_applicatie_obv_uri(
-            #     taak_data.get("taakr_taaktype_url", "")  # requires implementation
-            # )
 
             taakapplicatie = Applicatie.vind_applicatie_obv_uri(
                 taak_data.get("taaktype", "")
             )
 
-            if not taakapplicatie:
-                raise Applicatie.ApplicatieWerdNietGevondenFout(
-                    f"De applicatie voor dit taaktype kon niet worden gevonden: taaktype={taak_data.get('taaktype', '')}"
-                )
             gebruiker = serializer.validated_data.pop("gebruiker", None)
             # We might want to include the taaktypeapplicatie taaktype url as well.
             taakopdracht = serializer.save(
@@ -558,20 +552,23 @@ class MeldingManager(models.Manager):
             taakgebeurtenis = serializer.save(
                 taakopdracht=locked_taakopdracht,
             )
-            if not locked_melding.thumbnail_afbeelding and taakgebeurtenis.bijlagen:
-                locked_melding.thumbnail_afbeelding = taakgebeurtenis.bijlagen.last()
+            taakgebeurtenis_bijlagen = taakgebeurtenis.bijlagen.reverse()
+            if not locked_melding.thumbnail_afbeelding and taakgebeurtenis_bijlagen:
+                locked_melding.thumbnail_afbeelding = taakgebeurtenis_bijlagen[0]
                 locked_melding.save()
 
             taakgebeurtenis.aangemaakt_op = taakgebeurtenis_aangemaakt_op
             taakgebeurtenis.save()
 
-            laatste_taakgebeurtenis_voor_taak = (
+            taakgebeurtenissen = (
                 locked_taakopdracht.taakgebeurtenissen_voor_taakopdracht.order_by(
-                    "aangemaakt_op"
-                ).last()
+                    "-aangemaakt_op"
+                )
             )
+
             if (
-                laatste_taakgebeurtenis_voor_taak == taakgebeurtenis
+                taakgebeurtenissen
+                and taakgebeurtenissen[0] == taakgebeurtenis
                 and taakgebeurtenis.taakstatus
             ):
                 locked_taakopdracht.status = taakgebeurtenis.taakstatus

@@ -74,12 +74,12 @@ class MeldingSignaalSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(MeldinggebeurtenisSignaalSerializer)
     def get_laatste_meldinggebeurtenis(self, obj):
-        meldinggebeurtenis = (
-            obj.meldinggebeurtenissen_voor_melding.all()
-            .order_by("-aangemaakt_op")
-            .first()
+        meldinggebeurtenissen = obj.meldinggebeurtenissen_voor_melding.order_by(
+            "-aangemaakt_op"
         )
-        return MeldinggebeurtenisSignaalSerializer(meldinggebeurtenis).data
+        return MeldinggebeurtenisSignaalSerializer(
+            meldinggebeurtenissen[0] if meldinggebeurtenissen else None
+        ).data
 
     class Meta:
         model = Melding
