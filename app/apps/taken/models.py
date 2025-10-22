@@ -172,6 +172,9 @@ class Taakopdracht(BasisModel):
         ordering = ("-aangemaakt_op",)
         verbose_name = "Taakopdracht"
         verbose_name_plural = "Taakopdrachten"
+        indexes = [
+            models.Index(fields=["uuid"], name="taakopdracht_uuid_idx"),
+        ]
 
     @property
     def is_voltooid(self):
