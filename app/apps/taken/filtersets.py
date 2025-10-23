@@ -55,6 +55,12 @@ class TaakopdrachtFilter(filters.FilterSet):
     taaktype_startswith = filters.CharFilter(
         field_name="taaktype", lookup_expr="startswith"
     )
+    is_not_afgesloten = filters.BooleanFilter(
+        field_name="afgesloten_op", lookup_expr="isnull"
+    )
+    is_not_verwijderd = filters.BooleanFilter(
+        field_name="verwijderd_op", lookup_expr="isnull"
+    )
     has_no_taak_url = filters.BooleanFilter(field_name="taak_url", lookup_expr="isnull")
     task_taak_aanmaken_status = filters.MultipleChoiceFilter(
         choices=STATUS_CHOICES,

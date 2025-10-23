@@ -27,10 +27,12 @@ class TaakapplicatieSerializer(serializers.ModelSerializer):
             "uuid",
             "naam",
             "basis_url",
+            "applicatie_type",
         )
         read_only_fields = (
             "_links",
             "uuid",
             "naam",
             "basis_url",
+            "applicatie_type",
         )

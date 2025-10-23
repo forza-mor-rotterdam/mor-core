@@ -70,6 +70,7 @@ class Applicatie(BasisModel):
     def api_service(self):
         f = Fernet(settings.FERNET_KEY)
         init_kwargs = {
+            "client_name": "MORCore",
             "basis_url": self.basis_url,
             "gebruikersnaam": self.applicatie_gebruiker_naam,
             "wachtwoord": f.decrypt(self.applicatie_gebruiker_wachtwoord).decode(),
