@@ -81,8 +81,7 @@ class CustomCollector(object):
                 "taken_taakopdracht"."taak_url" IS NULL  \
                 AND "taken_taakopdracht"."verwijderd_op" IS NULL \
                 AND "taken_taakopdracht"."afgesloten_op" IS NULL \
-                AND ("django_celery_results_taskresult"."status" = \'FAILED\'  \
-                OR "django_celery_results_taskresult"."status" = \'SUCCESS\'  \
+                AND ("django_celery_results_taskresult"."status" = ANY(ARRAY[\'FAILURE\', \'SUCCESS\'])  \
                 OR "taken_taakopdracht"."task_taak_aanmaken_id" IS NULL)  \
             GROUP BY "taken_taakopdracht"."applicatie_id", 1 \
             ORDER BY "taken_taakopdracht"."applicatie_id" ASC; \
