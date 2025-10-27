@@ -9,7 +9,9 @@ from prometheus_client.core import CounterMetricFamily
 
 class CustomCollector(object):
     def __init__(self):
-        ...
+        self.taakapplicaties = Applicatie.objects.filter(
+            applicatie_type=Applicatie.ApplicatieTypes.TAAKAPPLICATIE
+        ).order_by("naam")
 
     def collect(self):
         yield self.collect_taakopdracht_zonder_taak_url_metrics()
@@ -27,21 +29,15 @@ class CustomCollector(object):
         )
         taakapplicatie_results = []
 
-        taakapplicaties = Applicatie.objects.filter(
-            applicatie_type=Applicatie.ApplicatieTypes.TAAKAPPLICATIE
-        ).order_by("naam")
-
-        sql = 'SELECT "applicaties_applicatie"."uuid", "applicaties_applicatie"."naam", \
+        sql = 'SELECT "taken_taakopdracht"."applicatie_id", \
             COUNT("taken_taakopdracht"."uuid") AS "count" \
-            FROM "applicaties_applicatie" \
-                JOIN "taken_taakopdracht" ON ("taken_taakopdracht"."applicatie_id" = "applicaties_applicatie"."id") \
-                WHERE  \
-                "applicaties_applicatie"."applicatie_type" = \'taakapplicatie\' \
-                AND "taken_taakopdracht"."taak_url" IS NULL  \
+            FROM "taken_taakopdracht" \
+            WHERE  \
+                "taken_taakopdracht"."taak_url" IS NULL  \
                 AND "taken_taakopdracht"."verwijderd_op" IS NULL \
                 AND "taken_taakopdracht"."afgesloten_op" IS NULL \
-            GROUP BY "applicaties_applicatie"."uuid", 2 \
-            ORDER BY "applicaties_applicatie"."uuid" ASC; \
+            GROUP BY "taken_taakopdracht"."applicatie_id", 1 \
+            ORDER BY "taken_taakopdracht"."applicatie_id" ASC; \
         '
 
         with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
@@ -49,19 +45,19 @@ class CustomCollector(object):
             taakapplicatie_results = self.dictfetchall(cursor)
 
         taakapplicatie_results_by_uuid = {
-            applicatie["uuid"]: applicatie for applicatie in taakapplicatie_results
+            applicatie["applicatie_id"]: applicatie
+            for applicatie in taakapplicatie_results
         }
 
-        for taakapplicatie in taakapplicaties:
+        for taakapplicatie in self.taakapplicaties:
             result = taakapplicatie_results_by_uuid.get(
-                taakapplicatie.uuid,
+                taakapplicatie.id,
                 {
-                    "naam": taakapplicatie.naam,
                     "count": 0,
                 },
             )
             c.add_metric(
-                (result["naam"],),
+                (taakapplicatie.naam,),
                 result["count"],
             )
 
@@ -77,24 +73,18 @@ class CustomCollector(object):
         )
         taakapplicatie_results = []
 
-        taakapplicaties = Applicatie.objects.filter(
-            applicatie_type=Applicatie.ApplicatieTypes.TAAKAPPLICATIE
-        ).order_by("naam")
-
-        sql = 'SELECT "applicaties_applicatie"."uuid", "applicaties_applicatie"."naam", \
+        sql = 'SELECT "taken_taakopdracht"."applicatie_id", \
             COUNT("taken_taakopdracht"."uuid") AS "count" \
-            FROM "applicaties_applicatie" \
-                JOIN "taken_taakopdracht" ON ("taken_taakopdracht"."applicatie_id" = "applicaties_applicatie"."id") \
+            FROM "taken_taakopdracht" \
                 LEFT OUTER JOIN "django_celery_results_taskresult" ON ("taken_taakopdracht"."task_taak_aanmaken_id" = "django_celery_results_taskresult"."id") \
-                WHERE  \
-                "applicaties_applicatie"."applicatie_type" = \'taakapplicatie\' \
-                AND "taken_taakopdracht"."taak_url" IS NULL  \
+            WHERE  \
+                "taken_taakopdracht"."taak_url" IS NULL  \
                 AND "taken_taakopdracht"."verwijderd_op" IS NULL \
                 AND "taken_taakopdracht"."afgesloten_op" IS NULL \
                 AND ("django_celery_results_taskresult"."status" = ANY(ARRAY[\'FAILED\', \'SUCCESS\'])  \
                 OR "taken_taakopdracht"."task_taak_aanmaken_id" IS NULL)  \
-            GROUP BY "applicaties_applicatie"."uuid", 2 \
-            ORDER BY "applicaties_applicatie"."uuid" ASC; \
+            GROUP BY "taken_taakopdracht"."applicatie_id", 1 \
+            ORDER BY "taken_taakopdracht"."applicatie_id" ASC; \
         '
 
         with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
@@ -102,19 +92,19 @@ class CustomCollector(object):
             taakapplicatie_results = self.dictfetchall(cursor)
 
         taakapplicatie_results_by_uuid = {
-            applicatie["uuid"]: applicatie for applicatie in taakapplicatie_results
+            applicatie["applicatie_id"]: applicatie
+            for applicatie in taakapplicatie_results
         }
 
-        for taakapplicatie in taakapplicaties:
+        for taakapplicatie in self.taakapplicaties:
             result = taakapplicatie_results_by_uuid.get(
-                taakapplicatie.uuid,
+                taakapplicatie.id,
                 {
-                    "naam": taakapplicatie.naam,
                     "count": 0,
                 },
             )
             c.add_metric(
-                (result["naam"],),
+                (taakapplicatie.naam,),
                 result["count"],
             )
 
