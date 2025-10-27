@@ -66,6 +66,14 @@ class Applicatie(BasisModel):
         default=ApplicatieTypes.TAAKAPPLICATIE,
         choices=ApplicatieTypes.choices,
     )
+    stuur_notificatie_melding_afgesloten = models.BooleanField(
+        default=False,
+        help_text="Deze notificatie is alleen van toepassing op signaalapplicaties",
+    )
+    stuur_notificatie_melding_veranderd = models.BooleanField(
+        default=False,
+        help_text="Deze notificatie is alleen van toepassing op taakapplicaties",
+    )
 
     def api_service(self):
         f = Fernet(settings.FERNET_KEY)
@@ -118,6 +126,8 @@ class Applicatie(BasisModel):
     def melding_veranderd_notificatie_voor_applicatie(
         self, melding_url, notificatie_type
     ):
+        if not self.stuur_notificatie_melding_veranderd:
+            return {}
         api_service = self.api_service()
         api_service_call = getattr(
             api_service, "melding_veranderd_notificatie_voor_applicatie", None
@@ -165,13 +175,7 @@ class Applicatie(BasisModel):
         return {}
 
     def notificatie_melding_afgesloten(self, signaal_url):
-        if (
-            not self.applicatie_gebruiker_naam
-            or not self.applicatie_gebruiker_wachtwoord
-        ):
-            logger.warning(
-                f"API Service(notificatie_melding_afgesloten): Voor de applicatie '{self.naam}' zijn geen nog credentials ingesteld"
-            )
+        if not self.stuur_notificatie_melding_afgesloten:
             return {}
         api_service = self.api_service()
         api_service_call = getattr(api_service, "notificatie_melding_afgesloten", None)
