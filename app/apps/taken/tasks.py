@@ -208,10 +208,10 @@ def task_taak_aanmaken_v2(self, taakopdracht_uuid):
         taakopdracht.taak_url = taak_url
         taakopdracht.save(update_fields=["taak_url"])
         if taak_aanmaken_response.get("aangemaakt_op") and taakgebeurtenissen:
-            taakgebeurtenissen[0].aangemaakt_op = datetime.fromisoformat(
+            taakgebeurtenissen[0].aangepast_op = datetime.fromisoformat(
                 taak_aanmaken_response.get("aangemaakt_op")
             )
-            taakgebeurtenissen[0].save(update_fields=["aangemaakt_op"])
+            taakgebeurtenissen[0].save(update_fields=["aangepast_op"])
 
     return f"De taak is aangemaakt in {taakopdracht.applicatie.naam}, o.b.v. taakopdracht met uuid: {taakopdracht_uuid}, de taakapplicatie taak url is: {taakopdracht.taak_url}."
 
