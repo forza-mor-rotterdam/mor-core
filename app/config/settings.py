@@ -259,15 +259,15 @@ HIGHEST_PRIORITY_TASKS = [
 ]
 HIGH_PRIORITY_TASKS = [
     "config.celery.test_urgent_task",
-    "apps.bijlagen.task_aanmaken_afbeelding_versies",
+    "apps.bijlagen.tasks.task_aanmaken_afbeelding_versies",
 ]
 DEFAULT_PRIORITY_TASKS = [
     "config.celery.test_regular_task",
-    "apps.taken.task_taak_aanmaken_v2",
-    "apps.taken.task_taak_verwijderen",
-    "apps.meldingen.task_notificaties_voor_melding_veranderd",
-    "apps.meldingen.task_notificatie_voor_melding_veranderd",
-    "apps.meldingen.task_notificatie_voor_signaal_melding_afgesloten",
+    "apps.taken.tasks.task_taak_aanmaken_v2",
+    "apps.taken.tasks.task_taak_verwijderen",
+    "apps.meldingen.tasks.task_notificaties_voor_melding_veranderd",
+    "apps.meldingen.tasks.task_notificatie_voor_melding_veranderd",
+    "apps.meldingen.tasks.task_notificatie_voor_signaal_melding_afgesloten",
 ]
 LOW_PRIORITY_TASKS = []
 CELERY_TASK_ROUTES = "config.celery.task_router"
