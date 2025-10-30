@@ -6,7 +6,6 @@ from drf_spectacular.utils import extend_schema_field
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from utils.validators import URLTrailingSlashValidator
 
 
 class TaakstatusSerializer(serializers.ModelSerializer):
@@ -177,7 +176,7 @@ class TaakopdrachtListSerializer(serializers.ModelSerializer):
 
 class TaakopdrachtSerializer(serializers.ModelSerializer):
     _links = TaakopdrachtLinksSerializer(source="*", read_only=True)
-    taaktype = serializers.URLField(validators=[URLTrailingSlashValidator()])
+    taaktype = serializers.URLField()
     status = TaakstatusSerializer(read_only=True)
     taakgebeurtenissen_voor_taakopdracht = TaakgebeurtenisSerializer(
         many=True, read_only=True
