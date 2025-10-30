@@ -103,10 +103,6 @@ def test_regular_made_important_task(sleep=5, param_uuid=None):
 def test_not_so_important_task(sleep=5, param_uuid=None):
     import time
 
-    from django.db import connection
-
-    with connection.cursor() as cursor:
-        cursor.execute("select pg_sleep(41)")
     time.sleep(sleep)
     return param_uuid
 
