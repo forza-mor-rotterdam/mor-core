@@ -19,7 +19,7 @@ from apps.meldingen.producers import (
 from apps.meldingen.tasks import (
     task_bijlages_voor_geselecteerde_meldingen_opruimen,
     task_notificatie_voor_signaal_melding_afgesloten,
-    task_notificaties_voor_melding_veranderd,
+    task_notificaties_voor_melding_veranderd_v2,
     task_vernieuw_melding_zoek_tekst,
 )
 from apps.status.models import Status
@@ -38,12 +38,14 @@ def signaal_aangemaakt_handler(sender, melding, signaal, *args, **kwargs):
     if kwargs.get("raw"):
         return
     bijlages_aanmaken = [
-        task_aanmaken_afbeelding_versies.s(bijlage.pk)
+        task_aanmaken_afbeelding_versies.si(bijlage.pk)
         for bijlage in signaal.bijlagen.all()
     ]
-    notificaties_voor_melding_veranderd = task_notificaties_voor_melding_veranderd.s(
-        melding_url=melding.get_absolute_url(),
-        notificatie_type="signaal_aangemaakt",
+    notificaties_voor_melding_veranderd = (
+        task_notificaties_voor_melding_veranderd_v2.si(
+            melding_url=melding.get_absolute_url(),
+            notificatie_type="signaal_aangemaakt",
+        )
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
     task_vernieuw_melding_zoek_tekst.delay(melding.id)
@@ -62,7 +64,7 @@ def status_aangepast_handler(
             taakopdrachten=taakopdrachten,
         )
     else:
-        task_notificaties_voor_melding_veranderd.delay(
+        task_notificaties_voor_melding_veranderd_v2.delay(
             melding_url=melding.get_absolute_url(),
             notificatie_type="status_aangepast",
         )
@@ -72,7 +74,7 @@ def status_aangepast_handler(
 def urgentie_aangepast_handler(sender, melding, vorige_urgentie, *args, **kwargs):
     if kwargs.get("raw"):
         return
-    task_notificaties_voor_melding_veranderd.delay(
+    task_notificaties_voor_melding_veranderd_v2.delay(
         melding_url=melding.get_absolute_url(),
         notificatie_type="urgentie_aangepast",
     )
@@ -82,7 +84,7 @@ def urgentie_aangepast_handler(sender, melding, vorige_urgentie, *args, **kwargs
 def afgesloten_handler(sender, melding, taakopdrachten=[], *args, **kwargs):
     if kwargs.get("raw"):
         return
-    task_notificaties_voor_melding_veranderd.delay(
+    task_notificaties_voor_melding_veranderd_v2.delay(
         melding_url=melding.get_absolute_url(),
         notificatie_type="afgesloten",
     )
@@ -109,12 +111,14 @@ def gebeurtenis_toegevoegd_handler(
     if kwargs.get("raw"):
         return
     bijlages_aanmaken = [
-        task_aanmaken_afbeelding_versies.s(bijlage.pk)
+        task_aanmaken_afbeelding_versies.si(bijlage.pk)
         for bijlage in meldinggebeurtenis.bijlagen.all()
     ]
-    notificaties_voor_melding_veranderd = task_notificaties_voor_melding_veranderd.s(
-        melding_url=melding.get_absolute_url(),
-        notificatie_type="gebeurtenis_toegevoegd",
+    notificaties_voor_melding_veranderd = (
+        task_notificaties_voor_melding_veranderd_v2.si(
+            melding_url=melding.get_absolute_url(),
+            notificatie_type="gebeurtenis_toegevoegd",
+        )
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
 
@@ -136,7 +140,7 @@ def melding_verwijderd_handler(
             melding_url=melding_url,
             pad=pad,
         )
-    task_notificaties_voor_melding_veranderd.delay(
+    task_notificaties_voor_melding_veranderd_v2.delay(
         melding_url=melding_url,
         notificatie_type="melding_verwijderd",
     )
@@ -148,7 +152,7 @@ def taakopdracht_aangemaakt_handler(
 ):
     if kwargs.get("raw"):
         return
-    task_notificaties_voor_melding_veranderd.delay(
+    task_notificaties_voor_melding_veranderd_v2.delay(
         melding_url=melding.get_absolute_url(),
         notificatie_type="taakopdracht_aangemaakt",
     )
@@ -171,12 +175,14 @@ def taakopdracht_status_aangepast_handler(
         return
 
     bijlages_aanmaken = [
-        task_aanmaken_afbeelding_versies.s(bijlage.pk)
+        task_aanmaken_afbeelding_versies.si(bijlage.pk)
         for bijlage in taakgebeurtenis.bijlagen.all()
     ]
-    notificaties_voor_melding_veranderd = task_notificaties_voor_melding_veranderd.s(
-        melding_url=melding.get_absolute_url(),
-        notificatie_type="taakopdracht_notificatie",
+    notificaties_voor_melding_veranderd = (
+        task_notificaties_voor_melding_veranderd_v2.si(
+            melding_url=melding.get_absolute_url(),
+            notificatie_type="taakopdracht_notificatie",
+        )
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
 
@@ -192,6 +198,10 @@ def taakopdracht_verwijderd_handler(
         return
     task_taak_verwijderen.delay(
         taakopdracht_id=taakopdracht.id,
+    )
+    task_notificaties_voor_melding_veranderd_v2.delay(
+        melding_url=melding.get_absolute_url(),
+        notificatie_type="taakopdracht_aangemaakt",
     )
 
 

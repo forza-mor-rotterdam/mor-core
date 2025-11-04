@@ -265,8 +265,8 @@ DEFAULT_PRIORITY_TASKS = [
     "config.celery.test_regular_task",
     "apps.taken.tasks.task_taak_aanmaken_v2",
     "apps.taken.tasks.task_taak_verwijderen",
-    "apps.meldingen.tasks.task_notificaties_voor_melding_veranderd",
-    "apps.meldingen.tasks.task_notificatie_voor_melding_veranderd",
+    "apps.meldingen.tasks.task_notificaties_voor_melding_veranderd_v2",
+    "apps.meldingen.tasks.task_notificatie_voor_melding_veranderd_v2",
     "apps.meldingen.tasks.task_notificatie_voor_signaal_melding_afgesloten",
 ]
 LOW_PRIORITY_TASKS = []

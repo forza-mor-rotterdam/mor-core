@@ -1,11 +1,13 @@
+import uuid
 from datetime import timedelta
 
 import celery
-from celery import shared_task
+from celery import shared_task, states
 from celery.utils.log import get_task_logger
 from django.conf import settings
-from django.db.models import OuterRef, Subquery
+from django.db.models import OuterRef, Q, Subquery
 from django_celery_beat.models import ClockedSchedule, PeriodicTask
+from django_celery_results.models import TaskResult
 
 logger = get_task_logger(__name__)
 
@@ -50,6 +52,31 @@ def task_notificaties_voor_melding_veranderd(*args, **kwargs):
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
+def task_notificaties_voor_melding_veranderd_v2(self, melding_url, notificatie_type):
+    from apps.applicaties.models import Applicatie
+
+    applicaties = Applicatie.objects.filter(stuur_notificatie_melding_veranderd=True)
+
+    for applicatie in applicaties:
+        taskresults = TaskResult.objects.filter(
+            Q(task_kwargs__contains=str(applicatie.uuid))
+            & Q(task_kwargs__contains=melding_url)
+            & Q(status__in=[states.PENDING, states.RETRY, states.STARTED])
+        )
+        if not taskresults:
+            task_notificatie_voor_melding_veranderd_v2.delay(
+                applicatie_uuid=str(applicatie.uuid),
+                melding_url=melding_url,
+                notificatie_type=notificatie_type,
+            )
+    return {
+        "applicatie_count": applicaties.count(),
+        "melding_url": melding_url,
+        "notificatie_type": notificatie_type,
+    }
+
+
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def task_notificatie_voor_melding_veranderd(
     self, applicatie_id, melding_url, notificatie_type
 ):
@@ -66,6 +93,29 @@ def task_notificatie_voor_melding_veranderd(
             f'task_notificatie_voor_melding_veranderd: applicatie:  {applicatie.naam}, bericht: {error.get("bericht")}, status code: {error.get("status_code")}'
         )
     return f"Applicatie naam: {applicatie.naam}, melding_url={melding_url}, notificatie_type={notificatie_type}"
+
+
+@shared_task(bind=True, base=BaseTaskWithRetry)
+def task_notificatie_voor_melding_veranderd_v2(
+    self, applicatie_uuid, melding_url, notificatie_type
+):
+    from apps.applicaties.models import Applicatie
+
+    applicatie = Applicatie.objects.get(uuid=uuid.UUID(applicatie_uuid))
+    notificatie_response = applicatie.melding_veranderd_notificatie_voor_applicatie(
+        melding_url,
+        notificatie_type,
+    )
+    error = notificatie_response.get("error")
+    if error:
+        logger.error(
+            f'task_notificatie_voor_melding_veranderd: applicatie:  {applicatie.naam}, bericht: {error.get("bericht")}, status code: {error.get("status_code")}'
+        )
+    return {
+        "applicatie_naam": applicatie.naam,
+        "melding_url": melding_url,
+        "notificatie_type": notificatie_type,
+    }
 
 
 @shared_task(bind=True)
