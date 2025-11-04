@@ -72,7 +72,6 @@ class Applicatie(BasisModel):
     )
     stuur_notificatie_melding_veranderd = models.BooleanField(
         default=False,
-        help_text="Deze notificatie is alleen van toepassing op taakapplicaties",
     )
 
     def api_service(self):
