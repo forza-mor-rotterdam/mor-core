@@ -18,6 +18,7 @@ class CustomCollector(object):
         yield self.collect_taakopdracht_zonder_taak_url_niet_actief_metrics()
         yield self.collect_melding_metrics()
         yield self.collect_taak_metrics()
+        yield self.collect_celery_task_results()
 
     def collect_taakopdracht_zonder_taak_url_metrics(self):
         c = CounterMetricFamily(
@@ -81,7 +82,7 @@ class CustomCollector(object):
                 "taken_taakopdracht"."taak_url" IS NULL  \
                 AND "taken_taakopdracht"."verwijderd_op" IS NULL \
                 AND "taken_taakopdracht"."afgesloten_op" IS NULL \
-                AND ("django_celery_results_taskresult"."status" = ANY(ARRAY[\'FAILURE\', \'SUCCESS\'])  \
+                AND ("django_celery_results_taskresult"."status" IN (\'FAILURE\', \'SUCCESS\') \
                 OR "taken_taakopdracht"."task_taak_aanmaken_id" IS NULL)  \
             GROUP BY "taken_taakopdracht"."applicatie_id", 1 \
             ORDER BY "taken_taakopdracht"."applicatie_id" ASC; \
@@ -179,6 +180,49 @@ class CustomCollector(object):
                     taak["wijk"],
                 ),
                 taak["count"],
+            )
+
+        return c
+
+    def collect_celery_task_results(self):
+        c = CounterMetricFamily(
+            "morcore_celery_task_results_issues_total",
+            "Aantallen van Celery TaskResult instanties per task_name en status, met status FAILED of RETRY",
+            labels=[
+                "task_name",
+                "status",
+            ],
+        )
+        total_objects = []
+
+        sql = '\
+            SELECT \
+                "django_celery_results_taskresult"."task_name", \
+                "django_celery_results_taskresult"."status", \
+                COUNT("django_celery_results_taskresult"."task_id") AS "count" \
+            FROM "django_celery_results_taskresult" \
+            WHERE \
+                "django_celery_results_taskresult"."status" IN (\'FAILURE\', \'RETRY\') \
+                AND "django_celery_results_taskresult"."task_name" IS NOT NULL \
+            GROUP BY \
+                "django_celery_results_taskresult"."status", \
+                "django_celery_results_taskresult"."task_name" \
+            ORDER BY \
+                "django_celery_results_taskresult"."status", \
+                "django_celery_results_taskresult"."task_name" ASC;\
+        '
+
+        with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
+            cursor.execute(sql)
+            total_objects = self.dictfetchall(cursor)
+
+        for obj in total_objects:
+            c.add_metric(
+                (
+                    obj["task_name"],
+                    obj["status"],
+                ),
+                obj["count"],
             )
 
         return c
