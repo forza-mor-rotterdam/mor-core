@@ -162,6 +162,7 @@ class Taakopdracht(BasisModel):
         blank=True,
         null=True,
     )
+    taak_aanmaken_error = models.CharField(max_length=5000, null=True, blank=True)
 
     objects = TaakopdrachtQuerySet.as_manager()
 
@@ -199,7 +200,7 @@ class Taakopdracht(BasisModel):
         )
         return taskresults[0] if taskresults else None
 
-    def herstart_task_taak_aanmaken(self):
+    def start_task_taak_aanmaken(self):
         if not self.task_taak_aanmaken:
             self.task_taak_aanmaken = self.get_task_taak_aanmaken()
             self.save(update_fields=["task_taak_aanmaken"])

@@ -1,9 +1,13 @@
-from apps.taken.models import Taakopdracht
+import uuid
+from functools import reduce
+from operator import or_
+
+from apps.taken.models import Taakopdracht, Taakstatus
 from celery import states
 from django.db.models import Q
 from django_filters import rest_framework as filters
 
-STATUS_CHOICES = (
+TASK_STATUS_CHOICES = (
     (states.PENDING, states.PENDING),
     (states.STARTED, states.STARTED),
     (states.RETRY, states.RETRY),
@@ -63,9 +67,43 @@ class TaakopdrachtFilter(filters.FilterSet):
     )
     has_no_taak_url = filters.BooleanFilter(field_name="taak_url", lookup_expr="isnull")
     task_taak_aanmaken_status = filters.MultipleChoiceFilter(
-        choices=STATUS_CHOICES,
+        choices=TASK_STATUS_CHOICES,
         method="get_task_taak_aanmaken_status",
     )
+    q = filters.CharFilter(method="get_q")
+    status_naam = filters.MultipleChoiceFilter(
+        choices=Taakstatus.NaamOpties.choices,
+        method="get_status",
+    )
+
+    def get_q(self, queryset, name, value):
+        if value:
+            filters = {
+                "taaktype__icontains": value,
+                "titel__icontains": value,
+                "taak_aanmaken_error__icontains": value,
+            }
+            try:
+                q_uuid = uuid.UUID(value)
+                filters.update(
+                    {
+                        "uuid": q_uuid,
+                        "melding__uuid": q_uuid,
+                        "applicatie__uuid": q_uuid,
+                    }
+                )
+            except Exception:
+                ...
+            q_objects = (Q(**{k: v}) for k, v in filters.items())
+            query = reduce(or_, q_objects)
+            queryset = queryset.filter(query)
+
+        return queryset
+
+    def get_status(self, queryset, name, value):
+        if value:
+            queryset = queryset.filter(status__naam__in=value)
+        return queryset
 
     def get_task_taak_aanmaken_status(self, queryset, name, value):
         if value:

@@ -659,12 +659,17 @@ class MeldingManager(models.Manager):
                     f"De taak is op dit moment in gebruik, probeer het later nog eens. melding nummer: {taakopdracht.id}, melding uuid: {taakopdracht.uuid}"
                 )
 
+            try:
+                gebruiker = nh3.clean(gebruiker)
+            except Exception:
+                gebruiker = None
+
             locked_melding = locked_taakopdracht.melding
             now = timezone.now()
 
             taakgebeurtenis = Taakgebeurtenis(
                 taakopdracht=locked_taakopdracht,
-                gebruiker=nh3.clean(gebruiker),
+                gebruiker=gebruiker,
                 verwijderd_op=now,
                 afgesloten_op=now,
             )

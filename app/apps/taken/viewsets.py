@@ -158,7 +158,7 @@ class TaakopdrachtViewSet(
         taakopdrachten_herstart = []
         for taakopdracht in taakopdrachten:
             taakopdrachten_herstart.append(str(taakopdracht.uuid))
-            taakopdracht.herstart_task_taak_aanmaken()
+            taakopdracht.start_task_taak_aanmaken()
 
         return Response(
             {
