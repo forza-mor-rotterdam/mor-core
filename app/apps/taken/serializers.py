@@ -156,6 +156,7 @@ class TaakopdrachtListSerializer(serializers.ModelSerializer):
             "status",
             "resolutie",
             "taak_url",
+            "taak_aanmaken_error",
             "task_taak_aanmaken__status",
         )
         read_only_fields = (
@@ -170,6 +171,7 @@ class TaakopdrachtListSerializer(serializers.ModelSerializer):
             "status",
             "resolutie",
             "taak_url",
+            "taak_aanmaken_error",
             "task_taak_aanmaken__status",
         )
 

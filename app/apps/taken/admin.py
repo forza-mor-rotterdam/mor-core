@@ -126,6 +126,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
         "taaktype",
         "task_taak_aanmaken",
         "taak_url",
+        "taak_aanmaken_error",
         "titel",
         "melding",
         "aangemaakt_op",
@@ -179,6 +180,8 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
                     "bericht",
                     "additionele_informatie",
                     "taak_url",
+                    "task_taak_aanmaken",
+                    "taak_aanmaken_error",
                 )
             },
         ),

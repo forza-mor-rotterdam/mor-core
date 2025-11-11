@@ -158,8 +158,7 @@ def taakopdracht_aangemaakt_handler(
     )
 
     # taak aanmaken task aanmaken en Taskresult db instance relateren aan taakopdracht instance
-    taakopdracht.task_taak_aanmaken = taakopdracht.get_task_taak_aanmaken()
-    taakopdracht.save(update_fields=["task_taak_aanmaken"])
+    taakopdracht.start_task_taak_aanmaken()
 
     taakopdracht_aangemaakt_producer = TaakopdrachtAangemaaktProducer()
     taakopdracht_veranderd_producer = TaakopdrachtVeranderdProducer()
