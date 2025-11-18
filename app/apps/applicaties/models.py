@@ -66,10 +66,18 @@ class Applicatie(BasisModel):
         default=ApplicatieTypes.TAAKAPPLICATIE,
         choices=ApplicatieTypes.choices,
     )
+    stuur_notificatie_melding_afgesloten = models.BooleanField(
+        default=False,
+        help_text="Deze notificatie is alleen van toepassing op signaalapplicaties",
+    )
+    stuur_notificatie_melding_veranderd = models.BooleanField(
+        default=False,
+    )
 
     def api_service(self):
         f = Fernet(settings.FERNET_KEY)
         init_kwargs = {
+            "client_name": "MORCore",
             "basis_url": self.basis_url,
             "gebruikersnaam": self.applicatie_gebruiker_naam,
             "wachtwoord": f.decrypt(self.applicatie_gebruiker_wachtwoord).decode(),
@@ -90,16 +98,18 @@ class Applicatie(BasisModel):
     @classmethod
     def vind_applicatie_obv_uri(cls, uri):
         url_o = urlparse(uri)
-        applicatie = Applicatie.objects.filter(
+        applicaties = Applicatie.objects.filter(
             basis_url=f"{url_o.scheme}://{url_o.netloc}"
-        ).first()
-        if not applicatie:
-            applicatie = Applicatie.objects.filter(
+        )
+        if not applicaties:
+            applicaties = Applicatie.objects.filter(
                 valide_basis_urls__contains=[f"{url_o.scheme}://{url_o.netloc}"]
-            ).first()
-        if not applicatie:
-            logger.warning(f"Er is geen Applicatie gevonden bij deze url: url={uri}")
-        return applicatie
+            )
+        if not applicaties:
+            raise Applicatie.ApplicatieWerdNietGevondenFout(
+                f"De applicatie voor deze uri kon niet worden gevonden: uri={uri}"
+            )
+        return applicaties[0]
 
     def encrypt_applicatie_gebruiker_wachtwoord(self, wachtwoord_decrypted):
         self.applicatie_gebruiker_wachtwoord = encrypt_gebruiker_wachtwoord(
@@ -116,6 +126,8 @@ class Applicatie(BasisModel):
     def melding_veranderd_notificatie_voor_applicatie(
         self, melding_url, notificatie_type
     ):
+        if not self.stuur_notificatie_melding_veranderd:
+            return {}
         api_service = self.api_service()
         api_service_call = getattr(
             api_service, "melding_veranderd_notificatie_voor_applicatie", None
@@ -163,6 +175,8 @@ class Applicatie(BasisModel):
         return {}
 
     def notificatie_melding_afgesloten(self, signaal_url):
+        if not self.stuur_notificatie_melding_afgesloten:
+            return {}
         api_service = self.api_service()
         api_service_call = getattr(api_service, "notificatie_melding_afgesloten", None)
         if callable(api_service_call):

@@ -1,245 +1,114 @@
-from datetime import datetime, timedelta
-
 from apps.applicaties.models import Applicatie
-from apps.locatie.models import Locatie
 from apps.meldingen.models import Melding
-from apps.services.pdok import PDOKService
-from apps.signalen.models import Signaal
-from apps.status.models import Status
-from apps.taken.models import Taakopdracht
 from django.conf import settings
 from django.db import connections
-from django.db.models import (
-    Avg,
-    Case,
-    Count,
-    DurationField,
-    ExpressionWrapper,
-    F,
-    OuterRef,
-    Q,
-    Subquery,
-    Value,
-    When,
-)
+from django.db.models import Count, F, Value
 from django.db.models.functions import Coalesce
-from django.utils import timezone
 from prometheus_client.core import CounterMetricFamily
-from shapely.wkt import loads
-
-
-def duration_to_seconds(duration):
-    """Converts a duration string to seconds."""
-    return duration.total_seconds() if duration else None
 
 
 class CustomCollector(object):
     def __init__(self):
-        ...
-        # self.taak_type_threshold_list = self.create_taaktype_threshold_list()
-        self.annotated_wijken_taken = self.annotate_highest_weight_wijk(
-            Taakopdracht.objects.all()
-        )
-        # self.annotated_threshold_taken = self.annotate_thresholds(
-        #     self.annotated_wijken_taken
-        # )
-
-    def create_taaktype_threshold_list(self):
-        taak_type_threshold_list = []
-        taaktype_applicatie = Applicatie.vind_applicatie_obv_uri(
-            settings.TAAKTYPE_APPLICATIE_URL
-        )
-        taaktype_data = taaktype_applicatie.taaktypes_halen(
-            cache_timeout=900
-        )  # Cache invalidates every 15 minutes
-        for taaktype in taaktype_data:
-            taak_type_threshold_list.append(
-                {
-                    "taaktype_url": taaktype["_links"].get("self", ""),
-                    "threshold": taaktype.get("threshold", 3),
-                    "titel": taaktype.get("omschrijving", ""),
-                }
-            )
-        return taak_type_threshold_list
-
-    def annotate_thresholds(self, queryset):
-        return queryset.annotate(
-            threshold=Case(
-                *[
-                    When(
-                        taaktype=taaktype.get("taaktype_url", ""),
-                        then=Value(taaktype.get("threshold", 3)),
-                    )
-                    for taaktype in self.taak_type_threshold_list
-                ],
-                default=Value(3),
-            )
-        )
-
-    def annotate_highest_weight_wijk(self, queryset):
-        locatie_subquery = (
-            Locatie.objects.filter(melding=OuterRef("melding"))
-            .order_by("-gewicht", "-aangemaakt_op")
-            .distinct()
-        )
-        return queryset.annotate(
-            highest_weight_wijk=Coalesce(
-                Subquery(locatie_subquery.values("wijknaam")[:1]),
-                Value("Onbekend"),
-            ),
-        )
+        self.taakapplicaties = Applicatie.objects.filter(
+            applicatie_type=Applicatie.ApplicatieTypes.TAAKAPPLICATIE
+        ).order_by("naam")
 
     def collect(self):
-        # Melding status metrics
-        # yield self.collect_melding_status_duur_openstaand_metrics()
-
-        # Meldingen metrics
+        yield self.collect_taakopdracht_zonder_taak_url_metrics()
+        yield self.collect_taakopdracht_zonder_taak_url_niet_actief_metrics()
         yield self.collect_melding_metrics()
-
-        # # Signalen metrics
-        # yield self.collect_signalen_metrics()
-
-        # Taak total metrics
         yield self.collect_taak_metrics()
+        yield self.collect_celery_task_results()
 
-        # Taaktype threshold
-        # yield self.collect_taaktype_threshold_metrics()
-
-        # Taken langer dan taaktype threshold open
-        # yield self.collect_taken_over_threshold_metrics()
-
-        # Taken minder langer dan taaktype threshold open
-        # yield self.collect_taken_onder_threshold_metrics()
-
-        # Taak duur openstaand metrics
-        # yield self.collect_taak_duur_metrics()
-
-    def collect_signalen_metrics(self):
+    def collect_taakopdracht_zonder_taak_url_metrics(self):
         c = CounterMetricFamily(
-            "signalen",
-            "Signalen aantalen gevarieerd op onderwerp en wijk",
+            "morcore_taakopdracht_zonder_taak_url_total",
+            "Taakopdracht aantallen zonder taak_url",
             labels=[
-                "onderwerp",
-                "wijk",
-                "lat",
-                "lon",
+                "applicatie_naam",
             ],
         )
+        taakapplicatie_results = []
 
-        wijken = PDOKService().get_wijken_middels_gemeentecode(
-            gemeentecode=settings.WIJKEN_EN_BUURTEN_GEMEENTECODE
-        )
-        wijken_gps_lookup = {
-            wijk.get("wijknaam"): wijk.get("centroide_ll") for wijk in wijken
+        sql = 'SELECT "taken_taakopdracht"."applicatie_id", \
+            COUNT("taken_taakopdracht"."uuid") AS "count" \
+            FROM "taken_taakopdracht" \
+            WHERE  \
+                "taken_taakopdracht"."taak_url" IS NULL  \
+                AND "taken_taakopdracht"."verwijderd_op" IS NULL \
+                AND "taken_taakopdracht"."afgesloten_op" IS NULL \
+            GROUP BY "taken_taakopdracht"."applicatie_id", 1 \
+            ORDER BY "taken_taakopdracht"."applicatie_id" ASC; \
+        '
+
+        with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
+            cursor.execute(sql)
+            taakapplicatie_results = self.dictfetchall(cursor)
+
+        taakapplicatie_results_by_uuid = {
+            applicatie["applicatie_id"]: applicatie
+            for applicatie in taakapplicatie_results
         }
-        signalen = (
-            Signaal.objects.filter(onderwerpen__response_json__name__isnull=False)
-            .annotate(
-                wijknaam=Coalesce(
-                    F("melding__referentie_locatie__wijknaam"),
-                    Value("Onbekend"),
-                )
-            )
-            .values("onderwerpen__response_json__name", "wijknaam")
-            .annotate(count=Count("onderwerpen__response_json__name"))
-            .values("count", "onderwerpen__response_json__name", "wijknaam")
-        )
-        for m in signalen:
-            wijknaam = str(m.get("wijknaam", "Onbekend"))
-            gps = (
-                loads(wijken_gps_lookup.get(wijknaam))
-                if wijken_gps_lookup.get(wijknaam)
-                else ""
+
+        for taakapplicatie in self.taakapplicaties:
+            result = taakapplicatie_results_by_uuid.get(
+                taakapplicatie.id,
+                {
+                    "count": 0,
+                },
             )
             c.add_metric(
-                [
-                    str(m.get("onderwerpen__response_json__name", "Onbekend")),
-                    wijknaam,
-                    str(gps.coords[0][1]) if gps else "",
-                    str(gps.coords[0][0]) if gps else "",
-                ],
-                m.get("count"),
+                (taakapplicatie.naam,),
+                result["count"],
             )
+
         return c
 
-    def collect_melding_status_duur_openstaand_metrics(self):
+    def collect_taakopdracht_zonder_taak_url_niet_actief_metrics(self):
         c = CounterMetricFamily(
-            "melding_status_verandering_duur",
-            "Toont de laatste status namen(status_eind) over het afgelopen uur. Met het voorlaatste status naam(status_begin) voor de bijbehoorde melding. De Count waarde is het verschil in seconden tussen status_eind en status_begin",
+            "morcore_taakopdracht_zonder_taak_url_niet_actief_total",
+            "Aantallen van taakopdrachten die niet gesynchroniseerd zijn met de taakapplicatie",
             labels=[
-                "melding",
-                "status_eind_aangemaakt_op",
-                "status_eind",
-                "status_begin",
-                "onderwerp",
-                "wijk",
+                "applicatie_naam",
             ],
         )
-        now = datetime.now() - timedelta(hours=1)
+        taakapplicatie_results = []
 
-        sub_all_statussen = Status.objects.filter(
-            melding=OuterRef("melding"), aangemaakt_op__lt=OuterRef("aangemaakt_op")
-        ).order_by("melding")
+        sql = 'SELECT "taken_taakopdracht"."applicatie_id", \
+            COUNT("taken_taakopdracht"."uuid") AS "count" \
+            FROM "taken_taakopdracht" \
+                LEFT OUTER JOIN "django_celery_results_taskresult" ON ("taken_taakopdracht"."task_taak_aanmaken_id" = "django_celery_results_taskresult"."id") \
+            WHERE  \
+                "taken_taakopdracht"."taak_url" IS NULL  \
+                AND "taken_taakopdracht"."verwijderd_op" IS NULL \
+                AND "taken_taakopdracht"."afgesloten_op" IS NULL \
+                AND ("django_celery_results_taskresult"."status" IN (\'FAILURE\', \'SUCCESS\') \
+                OR "taken_taakopdracht"."task_taak_aanmaken_id" IS NULL)  \
+            GROUP BY "taken_taakopdracht"."applicatie_id", 1 \
+            ORDER BY "taken_taakopdracht"."applicatie_id" ASC; \
+        '
 
-        sub = sub_all_statussen.values_list("melding", flat=True)
+        with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
+            cursor.execute(sql)
+            taakapplicatie_results = self.dictfetchall(cursor)
 
-        sub_aangemaakt_op = sub_all_statussen.order_by("-aangemaakt_op").values_list(
-            "aangemaakt_op", flat=True
-        )[:1]
-        sub_naam = sub_all_statussen.order_by("-aangemaakt_op").values_list(
-            "naam", flat=True
-        )[:1]
-        sub_id = sub_all_statussen.order_by("-aangemaakt_op").values_list(
-            "id", flat=True
-        )[:1]
-        sum_statussen_for_meldingen = sub.annotate(
-            statussen_for_melding_sum=Count("melding")
-        ).values("statussen_for_melding_sum")
+        taakapplicatie_results_by_uuid = {
+            applicatie["applicatie_id"]: applicatie
+            for applicatie in taakapplicatie_results
+        }
 
-        statussen = (
-            Status.objects.annotate(
-                onderwerpen_count=Count("melding__onderwerpen"),
-                locaties_count=Count("melding__locaties_voor_melding"),
+        for taakapplicatie in self.taakapplicaties:
+            result = taakapplicatie_results_by_uuid.get(
+                taakapplicatie.id,
+                {
+                    "count": 0,
+                },
             )
-            .exclude(
-                onderwerpen_count=0,
-                locaties_count=0,
-            )
-            .filter(
-                aangemaakt_op__gte=now,
-            )
-            .annotate(status_count=Subquery(sum_statussen_for_meldingen))
-            .filter(status_count__isnull=False)
-            .order_by("-aangemaakt_op")
-            .annotate(
-                status_begin_naam=Subquery(sub_naam),
-                status_begin_id=Subquery(sub_id),
-                status_begin_aangemaakt_op=Subquery(sub_aangemaakt_op),
-                duur=ExpressionWrapper(
-                    F("aangemaakt_op") - Subquery(sub_aangemaakt_op),
-                    output_field=DurationField(),
-                ),
-            )
-        )
-        for status in statussen:
-            first_location = status.melding.locaties_voor_melding.order_by(
-                "gewicht"
-            ).first()
             c.add_metric(
-                (
-                    str(status.melding.id),
-                    str(status.aangemaakt_op.timestamp()),
-                    status.naam,
-                    status.status_begin_naam,
-                    str(
-                        status.melding.onderwerpen.all()
-                        .first()
-                        .response_json.get("name")
-                    ),
-                    first_location.wijknaam if first_location.wijknaam else "",
-                ),
-                status.duur.seconds,
+                (taakapplicatie.naam,),
+                result["count"],
             )
+
         return c
 
     def collect_melding_metrics(self):
@@ -297,8 +166,6 @@ class CustomCollector(object):
             ],
         )
         total_taken = []
-
-        # sql = 'SELECT "taken_taakopdracht"."titel", "taken_taakstatus"."naam", COALESCE("locatie_locatie".wijknaam, \'Onbekend\') AS wijk, COUNT("taken_taakopdracht"."titel") AS "count" FROM "taken_taakopdracht" JOIN "taken_taakstatus" ON ("taken_taakopdracht"."status_id" = "taken_taakstatus"."id") JOIN "locatie_locatie" ON "locatie_locatie".melding_id = "taken_taakopdracht".melding_id AND "locatie_locatie".primair = true GROUP BY "taken_taakopdracht"."titel", "taken_taakstatus"."naam", 3 ORDER BY "taken_taakopdracht"."titel" ASC;'
         sql = 'SELECT "taken_taakopdracht"."titel", "taken_taakstatus"."naam", COALESCE("locatie_locatie".wijknaam, \'Onbekend\') AS wijk, COUNT("taken_taakopdracht"."titel") AS "count" FROM "taken_taakopdracht" JOIN "taken_taakstatus" ON ("taken_taakopdracht"."status_id" = "taken_taakstatus"."id") JOIN "locatie_locatie" ON "locatie_locatie".melding_id = "taken_taakopdracht".melding_id JOIN "meldingen_melding" ON "meldingen_melding".referentie_locatie_id = "locatie_locatie".id GROUP BY "taken_taakopdracht"."titel", "taken_taakstatus"."naam", 3 ORDER BY "taken_taakopdracht"."titel" ASC;'
 
         with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
@@ -317,123 +184,45 @@ class CustomCollector(object):
 
         return c
 
-    def collect_taak_duur_metrics(self):
+    def collect_celery_task_results(self):
         c = CounterMetricFamily(
-            "morcore_taken_duur_openstaand",
-            "Taak duur openstaand",
-            labels=["taaktype", "status", "wijk"],
+            "morcore_celery_task_results_issues_total",
+            "Aantallen van Celery TaskResult instanties per task_name en status, met status FAILED of RETRY",
+            labels=[
+                "task_name",
+                "status",
+            ],
         )
-        taken = (
-            self.annotated_wijken_taken.values(
-                "titel",
-                "status__naam",
-                "highest_weight_wijk",
-            )
-            .order_by("titel")
-            .annotate(
-                avg_openstaand=Avg(
-                    Case(
-                        When(
-                            afgesloten_op__isnull=False,
-                            aangemaakt_op__isnull=False,
-                            afhandeltijd__isnull=False,
-                            then=F("afhandeltijd"),
-                        ),
-                        default=ExpressionWrapper(
-                            timezone.now() - F("aangemaakt_op"),
-                            output_field=DurationField(),
-                        ),
-                        output_field=DurationField(),
-                    ),
-                ),
-            )
-        )
+        total_objects = []
 
-        for taak in taken:
-            if avg_openstaand_duration := taak.get("avg_openstaand"):
-                avg_openstaand_seconds = avg_openstaand_duration.total_seconds()
+        sql = '\
+            SELECT \
+                "django_celery_results_taskresult"."task_name", \
+                "django_celery_results_taskresult"."status", \
+                COUNT("django_celery_results_taskresult"."task_id") AS "count" \
+            FROM "django_celery_results_taskresult" \
+            WHERE \
+                "django_celery_results_taskresult"."status" IN (\'FAILURE\', \'RETRY\') \
+                AND "django_celery_results_taskresult"."task_name" IS NOT NULL \
+            GROUP BY \
+                "django_celery_results_taskresult"."status", \
+                "django_celery_results_taskresult"."task_name" \
+            ORDER BY \
+                "django_celery_results_taskresult"."status", \
+                "django_celery_results_taskresult"."task_name" ASC;\
+        '
 
-                c.add_metric(
-                    (
-                        taak.get("titel"),
-                        taak.get("status__naam"),
-                        taak.get("highest_weight_wijk"),
-                    ),
-                    avg_openstaand_seconds,
-                )
-        return c
+        with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
+            cursor.execute(sql)
+            total_objects = self.dictfetchall(cursor)
 
-    def collect_taken_over_threshold_metrics(self):
-        c = CounterMetricFamily(
-            "morcore_taken_over_threshold",
-            "Aantal taken langer open dan de threshold van het taaktype per wijk en taaktype",
-            labels=["taaktype", "wijk"],
-        )
-        threshold_taken = (
-            self.annotated_threshold_taken.filter(
-                ~Q(status__naam__in=["voltooid", "voltooid_met_feedback"]),
-                afgesloten_op__isnull=True,
-                aangemaakt_op__lte=timezone.now()
-                - timezone.timedelta(days=1) * F("threshold"),
-            )
-            .values("titel", "highest_weight_wijk")
-            .order_by("titel")
-            .annotate(count=Count("titel"))
-        )
-
-        for taak in threshold_taken:
+        for obj in total_objects:
             c.add_metric(
                 (
-                    taak.get("titel"),
-                    taak.get("highest_weight_wijk"),
+                    obj["task_name"],
+                    obj["status"],
                 ),
-                taak.get("count"),
+                obj["count"],
             )
-
-        return c
-
-    def collect_taken_onder_threshold_metrics(self):
-        c = CounterMetricFamily(
-            "morcore_taken_onder_threshold",
-            "Aantal taken minder lang open dan de threshold van het taaktype per wijk en taaktype",
-            labels=["taaktype", "wijk"],
-        )
-
-        taken = (
-            self.annotated_threshold_taken.filter(
-                ~Q(status__naam__in=["voltooid", "voltooid_met_feedback"]),
-                afgesloten_op__isnull=True,
-                aangemaakt_op__gt=timezone.now()
-                - timezone.timedelta(days=1) * F("threshold"),
-            )
-            .values("titel", "highest_weight_wijk")
-            .order_by("titel")
-            .annotate(count=Count("titel"))
-        )
-
-        for taak in taken:
-            c.add_metric(
-                (
-                    taak.get("titel"),
-                    taak.get("highest_weight_wijk"),
-                ),
-                taak.get("count"),
-            )
-
-        return c
-
-    def collect_taaktype_threshold_metrics(self):
-        c = CounterMetricFamily(
-            "morcore_taaktype_threshold",
-            "De threshold in dagen van elk taaktype",
-            labels=["taaktype", "taaktype_url"],
-        )
-
-        for taaktype in self.taak_type_threshold_list:
-            taaktype_url = taaktype.get("taaktype_url", "")
-            threshold = taaktype.get("threshold", 3)
-            titel = taaktype.get("titel", "")
-
-            c.add_metric((titel, taaktype_url), threshold)
 
         return c

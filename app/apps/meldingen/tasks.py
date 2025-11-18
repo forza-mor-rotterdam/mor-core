@@ -1,11 +1,13 @@
+import uuid
 from datetime import timedelta
 
 import celery
-from celery import shared_task
+from celery import shared_task, states
 from celery.utils.log import get_task_logger
 from django.conf import settings
-from django.db.models import OuterRef, Subquery
+from django.db.models import OuterRef, Q, Subquery
 from django_celery_beat.models import ClockedSchedule, PeriodicTask
+from django_celery_results.models import TaskResult
 
 logger = get_task_logger(__name__)
 
@@ -20,13 +22,13 @@ class BaseTaskWithRetry(celery.Task):
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def task_notificatie_voor_signaal_melding_afgesloten(self, signaal_id):
+def task_notificatie_voor_signaal_melding_afgesloten(self, signaal_uuid):
     from apps.signalen.models import Signaal
 
-    signaal_instantie = Signaal.objects.get(pk=signaal_id)
+    signaal_instantie = Signaal.objects.get(uuid=signaal_uuid)
     signaal_instantie.notificatie_melding_afgesloten()
 
-    return f"Signaal id: {signaal_instantie.pk}"
+    return f"Signaal uuid: {signaal_instantie.uuid}"
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
@@ -50,6 +52,31 @@ def task_notificaties_voor_melding_veranderd(*args, **kwargs):
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
+def task_notificaties_voor_melding_veranderd_v2(self, melding_url, notificatie_type):
+    from apps.applicaties.models import Applicatie
+
+    applicaties = Applicatie.objects.filter(stuur_notificatie_melding_veranderd=True)
+
+    for applicatie in applicaties:
+        taskresults = TaskResult.objects.filter(
+            Q(task_kwargs__contains=str(applicatie.uuid))
+            & Q(task_kwargs__contains=melding_url)
+            & Q(status__in=[states.PENDING, states.RETRY, states.STARTED])
+        )
+        if not taskresults:
+            task_notificatie_voor_melding_veranderd_v2.delay(
+                applicatie_uuid=str(applicatie.uuid),
+                melding_url=melding_url,
+                notificatie_type=notificatie_type,
+            )
+    return {
+        "applicatie_count": applicaties.count(),
+        "melding_url": melding_url,
+        "notificatie_type": notificatie_type,
+    }
+
+
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def task_notificatie_voor_melding_veranderd(
     self, applicatie_id, melding_url, notificatie_type
 ):
@@ -66,6 +93,29 @@ def task_notificatie_voor_melding_veranderd(
             f'task_notificatie_voor_melding_veranderd: applicatie:  {applicatie.naam}, bericht: {error.get("bericht")}, status code: {error.get("status_code")}'
         )
     return f"Applicatie naam: {applicatie.naam}, melding_url={melding_url}, notificatie_type={notificatie_type}"
+
+
+@shared_task(bind=True, base=BaseTaskWithRetry)
+def task_notificatie_voor_melding_veranderd_v2(
+    self, applicatie_uuid, melding_url, notificatie_type
+):
+    from apps.applicaties.models import Applicatie
+
+    applicatie = Applicatie.objects.get(uuid=uuid.UUID(applicatie_uuid))
+    notificatie_response = applicatie.melding_veranderd_notificatie_voor_applicatie(
+        melding_url,
+        notificatie_type,
+    )
+    error = notificatie_response.get("error")
+    if error:
+        logger.error(
+            f'task_notificatie_voor_melding_veranderd: applicatie:  {applicatie.naam}, bericht: {error.get("bericht")}, status code: {error.get("status_code")}'
+        )
+    return {
+        "applicatie_naam": applicatie.naam,
+        "melding_url": melding_url,
+        "notificatie_type": notificatie_type,
+    }
 
 
 @shared_task(bind=True)
@@ -86,20 +136,21 @@ def task_bijlages_voor_geselecteerde_meldingen_opruimen(self, melding_ids):
 
     for melding_id in melding_ids:
         # alle melding bijlages op termijn opruimen
-        melding = Melding.objects.filter(
+        meldingen = Melding.objects.filter(
             id=melding_id,
             afgesloten_op__isnull=False,
-        ).first()
-        if not melding:
+        )
+        if not meldingen:
             logger.warning(f"Melding met id={melding_id}, is nog niet afgesloten")
             continue
+        melding = meldingen[0]
 
         periodic_task_name = (
             f"clocked_periodic_task_bijlages_voor_melding_opruimen_{melding.id}"
         )
-        existing_task = PeriodicTask.objects.filter(name=periodic_task_name).first()
-        if existing_task:
-            existing_task.delete()
+        existing_tasks = PeriodicTask.objects.filter(name=periodic_task_name)
+        if existing_tasks:
+            existing_tasks[0].delete()
         clocked_schedule = ClockedSchedule.objects.create(
             clocked_time=melding.afgesloten_op
             + timedelta(seconds=settings.MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS)
@@ -120,12 +171,13 @@ def task_bijlages_voor_melding_opruimen(self, melding_id):
     from apps.bijlagen.tasks import task_bijlage_opruimen
     from apps.meldingen.models import Melding
 
-    melding = Melding.objects.filter(
+    meldingen = Melding.objects.filter(
         id=melding_id,
         afgesloten_op__isnull=False,
-    ).first()
-    if not melding:
+    )
+    if not meldingen:
         return f"Melding met id={melding_id}, is nog niet afgesloten"
+    melding = meldingen[0]
 
     bijlagen = []
 
@@ -159,22 +211,6 @@ def task_bijlages_voor_melding_opruimen(self, melding_id):
         task_bijlage_opruimen.delay(bijlage.id)
 
     return {"bijlagen_aantal": len(bijlagen)}
-    # if instantaan:
-    # else:
-    #     periodic_task_name = f"clocked_periodic_task_bijlage_opruimen_{bijlage.id}"
-    #     existing_task = PeriodicTask.objects.filter(name=periodic_task_name).first()
-    #     if existing_task:
-    #         existing_task.delete()
-    #     clocked_schedule = ClockedSchedule.objects.create(
-    #         clocked_time=now + timedelta(seconds=settings.MELDING_AFGESLOTEN_BIJLAGE_OPRUIMEN_SECONDS)
-    #     )
-    #     PeriodicTask.objects.create(
-    #         clocked=clocked_schedule,
-    #         name=periodic_task_name,
-    #         task="apps.bijlagen.tasks.task_bijlage_opruimen",
-    #         one_off=True,
-    #         args=[bijlage.id],
-    #     )
 
 
 @shared_task(bind=True)
@@ -197,10 +233,11 @@ def task_vernieuw_melding_zoek_tekst_voor_melding_reeks(
 def task_vernieuw_melding_zoek_tekst(self, melding_id):
     from apps.meldingen.models import Melding
 
-    melding = Melding.objects.filter(id=melding_id).first()
+    meldingen = Melding.objects.filter(id=melding_id)
 
-    if not melding:
+    if not meldingen:
         return f"Melding met id={melding_id}, is nog niet gevonden"
+    melding = meldingen[0]
 
     melding.zoek_tekst = melding.get_zoek_tekst()
     melding.save(update_fields=["zoek_tekst"])
@@ -229,23 +266,19 @@ def task_set_melding_referentie_locatie_voor_melding(self, melding_id):
     from apps.locatie.models import Locatie
     from apps.meldingen.models import Melding
 
-    locatie = (
-        Locatie.objects.filter(
-            melding=melding_id,
-            locatie_type__in=["adres", "graf"],
-        )
-        .order_by("-gewicht")
-        .first()
-    )
+    locaties = Locatie.objects.filter(
+        melding=melding_id,
+        locatie_type__in=["adres", "graf"],
+    ).order_by("-gewicht")
 
-    melding = Melding.objects.filter(
+    meldingen = Melding.objects.filter(
         referentie_locatie__isnull=True,
         id=melding_id,
-    ).first()
+    )
 
-    if melding and locatie:
-        melding.referentie_locatie = locatie
-        melding.save(update_fields=["referentie_locatie"])
+    if meldingen and locaties:
+        meldingen[0].referentie_locatie = locaties[0]
+        meldingen[0].save(update_fields=["referentie_locatie"])
 
     return f"Referentie locatie set voor melding: {melding_id}"
 
@@ -298,9 +331,9 @@ def task_set_melding_thumbnail_afbeelding(self, melding_id):
 
     melding = Melding.objects.get(id=melding_id)
 
-    melding_bijlage = melding.get_bijlagen().first()
-    if melding_bijlage:
-        melding.thumbnail_afbeelding = melding_bijlage
+    melding_bijlagen = melding.get_bijlagen()
+    if melding_bijlagen:
+        melding.thumbnail_afbeelding = melding_bijlagen[0]
         melding.save(update_fields=["thumbnail_afbeelding"])
-
-    return f"Bijlage {melding_bijlage}, voor melding_id={melding_id}"
+        return f"Bijlage {melding_bijlagen[0]}, voor melding_id={melding_id}"
+    return f"Geen bijlage voor melding_id={melding_id}"

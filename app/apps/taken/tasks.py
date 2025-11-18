@@ -143,6 +143,70 @@ def task_taak_aanmaken(self, taakgebeurtenis_id, check_taak_url=True):
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
+def task_taak_aanmaken_v2(self, taakopdracht_uuid):
+    import uuid
+
+    from apps.taken.models import Taakopdracht
+    from celery import states
+
+    taakopdracht = Taakopdracht.objects.filter(uuid=uuid.UUID(taakopdracht_uuid))
+
+    if not taakopdracht:
+        return f"Taakopdracht is niet gevonden o.b.v. taakopdracht_uuid: {taakopdracht_uuid}"
+
+    taakopdracht = taakopdracht[0]
+
+    if taakopdracht.taak_url:
+        return f"Taak is al aangemaakt bij {taakopdracht.applicatie.naam}: taakopdracht_uuid: {taakopdracht_uuid}"
+
+    if taakopdracht.task_taak_aanmaken and taakopdracht.task_taak_aanmaken.status in [
+        states.PENDING,
+        states.RETRY,
+    ]:
+        return f"De taakopdracht is nog niet gesynchroniseerd({taakopdracht.task_taak_aanmaken.status}) met de taakapplicatie({taakopdracht.applicatie.naam}): taakopdracht_uuid: {taakopdracht_uuid}"
+
+    taakgebeurtenissen = taakopdracht.taakgebeurtenissen_voor_taakopdracht.order_by(
+        "aangemaakt_op"
+    )
+
+    taakapplicatie_data = {
+        "taaktype": taakopdracht.taaktype,
+        "titel": taakopdracht.titel,
+        "bericht": taakopdracht.bericht,
+        "taakopdracht": taakopdracht.get_absolute_url(),
+        "melding": taakopdracht.melding.get_absolute_url(),
+        "gebruiker": taakgebeurtenissen[0].gebruiker if taakgebeurtenissen else None,
+        "additionele_informatie": taakopdracht.additionele_informatie,
+        "omschrijving_intern": taakgebeurtenissen[0].omschrijving_intern
+        if taakgebeurtenissen
+        else None,
+    }
+    taak_aanmaken_response = taakopdracht.applicatie.taak_aanmaken(taakapplicatie_data)
+
+    error = taak_aanmaken_response.get("error")
+    taak_url = taak_aanmaken_response.get("_links", {}).get("self")
+    logger.info(
+        f'taakaaplicatie response _links: {taak_aanmaken_response.get("_links", {})}'
+    )
+    taakopdracht.taak_aanmaken_error = str(error)[:5000] if error else None
+    taakopdracht.taak_url = taak_url if not error else None
+    taakopdracht.save(update_fields=["taak_url", "taak_aanmaken_error"])
+
+    if taak_aanmaken_response.get("aangemaakt_op") and taakgebeurtenissen and not error:
+        taakgebeurtenissen[0].aangepast_op = datetime.fromisoformat(
+            taak_aanmaken_response.get("aangemaakt_op")
+        )
+        taakgebeurtenissen[0].save(update_fields=["aangepast_op"])
+
+    if error:
+        raise Exception(
+            f'De taak kon niet worden aangemaakt in {taakopdracht.applicatie.naam} o.b.v. taakopdracht met uuid {taakopdracht_uuid}, bericht: {error.get("bericht")} status code: {error.get("status_code")}'
+        )
+
+    return f"De taak is aangemaakt in {taakopdracht.applicatie.naam}, o.b.v. taakopdracht met uuid: {taakopdracht_uuid}, de taakapplicatie taak url is: {taakopdracht.taak_url}."
+
+
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def task_taak_verwijderen(self, taakopdracht_id, gebruiker=None):
     from apps.taken.models import Taakopdracht
 

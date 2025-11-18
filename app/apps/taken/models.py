@@ -5,8 +5,10 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.gis.db import models
 from django.contrib.sites.models import Site
 from django.db.models import Q
+from django_celery_results.models import TaskResult
 from rest_framework.exceptions import APIException
 from rest_framework.reverse import reverse
+from utils.django_celery_results import restart_task
 from utils.fields import DictJSONField
 from utils.models import BasisModel
 
@@ -153,6 +155,14 @@ class Taakopdracht(BasisModel):
         blank=True,
         null=True,
     )
+    task_taak_aanmaken = models.OneToOneField(
+        to="django_celery_results.TaskResult",
+        related_name="taakopdracht",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
+    taak_aanmaken_error = models.CharField(max_length=5000, null=True, blank=True)
 
     objects = TaakopdrachtQuerySet.as_manager()
 
@@ -163,6 +173,9 @@ class Taakopdracht(BasisModel):
         ordering = ("-aangemaakt_op",)
         verbose_name = "Taakopdracht"
         verbose_name_plural = "Taakopdrachten"
+        indexes = [
+            models.Index(fields=["uuid"], name="taakopdracht_uuid_idx"),
+        ]
 
     @property
     def is_voltooid(self):
@@ -175,6 +188,28 @@ class Taakopdracht(BasisModel):
             ]
             or self.verwijderd_op
         )
+
+    def get_task_taak_aanmaken(self):
+        from apps.taken.tasks import task_taak_aanmaken_v2
+
+        task_taak_aanmaken_taskresult = task_taak_aanmaken_v2.delay(
+            taakopdracht_uuid=str(self.uuid),
+        )
+        taskresults = TaskResult.objects.filter(
+            task_id=task_taak_aanmaken_taskresult.task_id
+        )
+        return taskresults[0] if taskresults else None
+
+    def start_task_taak_aanmaken(self):
+        if not self.task_taak_aanmaken:
+            self.task_taak_aanmaken = self.get_task_taak_aanmaken()
+            self.save(update_fields=["task_taak_aanmaken"])
+        else:
+            aangemaakt, message = restart_task(self.task_taak_aanmaken)
+            if not aangemaakt:
+                raise Exception(
+                    f"Het is niet gelukt om de bestaande tasks te herstarten: {message}"
+                )
 
     def valideer_en_set_resolutie(self, nieuwe_resolutie):
         self.resolutie = Taakopdracht.ResolutieOpties.OPGELOST

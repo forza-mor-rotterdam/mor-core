@@ -163,6 +163,24 @@ if DEBUG:
 # Database settings
 DEFAULT_DATABASE_KEY = "default"
 READONLY_DATABASE_KEY = "readonly"
+DATABASE_STATEMENT_TIMEOUT_DEFAULT = os.getenv(
+    "DATABASE_STATEMENT_TIMEOUT_DEFAULT", "120"
+)
+DATABASE_STATEMENT_TIMEOUT_REQUEST = os.getenv(
+    "DATABASE_STATEMENT_TIMEOUT_REQUEST", "30"
+)
+try:
+    DATABASE_STATEMENT_TIMEOUT_REQUEST = int(DATABASE_STATEMENT_TIMEOUT_REQUEST) * 1000
+except Exception:
+    DATABASE_STATEMENT_TIMEOUT_REQUEST = 30000
+try:
+    DATABASE_STATEMENT_TIMEOUT_DEFAULT = int(DATABASE_STATEMENT_TIMEOUT_DEFAULT)
+except Exception:
+    DATABASE_STATEMENT_TIMEOUT_REQUEST = 120
+
+DEFAULT_OPTIONS = {
+    "options": f"-c statement_timeout={DATABASE_STATEMENT_TIMEOUT_DEFAULT}s",
+}
 
 DATABASE_NAME = os.getenv("DATABASE_NAME")
 DATABASE_USER = os.getenv("DATABASE_USER")
@@ -183,6 +201,7 @@ DEFAULT_DATABASE = {
     "PASSWORD": DATABASE_PASSWORD,  # noqa
     "HOST": DATABASE_HOST,  # noqa
     "PORT": DATABASE_PORT,  # noqa
+    "OPTIONS": DEFAULT_OPTIONS,
 }
 READONLY_DATABASE = {
     "ENGINE": "django.contrib.gis.db.backends.postgis",
@@ -191,6 +210,7 @@ READONLY_DATABASE = {
     "PASSWORD": READONLY_DATABASE_PASSWORD,  # noqa
     "HOST": READONLY_DATABASE_HOST,  # noqa
     "PORT": READONLY_DATABASE_PORT,  # noqa
+    "OPTIONS": DEFAULT_OPTIONS,
 }
 
 DATABASES = {
@@ -219,6 +239,39 @@ CELERY_RESULT_EXTENDED = True
 CELERY_WORKER_CONCURRENCY = 2
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 20
 CELERY_WORKER_MAX_MEMORY_PER_CHILD = 200000
+CELERY_WORKER_SEND_TASK_EVENTS = True
+
+TASK_LOW_PRIORITY_QUEUE_NAME = "low_priority"
+TASK_DEFAULT_PRIORITY_QUEUE_NAME = "default_priority"
+TASK_HIGH_PRIORITY_QUEUE_NAME = "high_priority"
+TASK_HIGHEST_PRIORITY_QUEUE_NAME = "highest_priority"
+
+TASK_QUEUES = (
+    (TASK_HIGHEST_PRIORITY_QUEUE_NAME, 0),
+    (TASK_HIGH_PRIORITY_QUEUE_NAME, 3),
+    (TASK_DEFAULT_PRIORITY_QUEUE_NAME, 6),
+    (TASK_LOW_PRIORITY_QUEUE_NAME, 9),
+)
+CELERY_TASK_DEFAULT_QUEUE = TASK_HIGH_PRIORITY_QUEUE_NAME
+
+HIGHEST_PRIORITY_TASKS = [
+    "config.celery.test_critical_task",
+]
+HIGH_PRIORITY_TASKS = [
+    "config.celery.test_urgent_task",
+    "apps.bijlagen.tasks.task_aanmaken_afbeelding_versies",
+]
+DEFAULT_PRIORITY_TASKS = [
+    "config.celery.test_regular_task",
+    "apps.taken.tasks.task_taak_aanmaken_v2",
+    "apps.taken.tasks.task_taak_verwijderen",
+    "apps.meldingen.tasks.task_notificaties_voor_melding_veranderd_v2",
+    "apps.meldingen.tasks.task_notificatie_voor_melding_veranderd_v2",
+    "apps.meldingen.tasks.task_notificatie_voor_signaal_melding_afgesloten",
+]
+LOW_PRIORITY_TASKS = []
+CELERY_TASK_ROUTES = "config.celery.task_router"
+
 
 if ENVIRONMENT in ["unittest", "development"]:
     DJANGO_TEST_USERNAME = os.getenv("DJANGO_TEST_USERNAME", "test")

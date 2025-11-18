@@ -1,32 +1,188 @@
+import logging
 import os
+import uuid
 
-from celery import Celery
+from celery import Celery, shared_task, states
 from celery.signals import setup_logging
+from django.conf import settings
+from django.core.exceptions import FieldError
+from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 app = Celery("proj")
 app.config_from_object("django.conf:settings", namespace="CELERY")
-# app.conf.broker_transport_options = {
-#     "priority_steps": list(range(10)),
-#     "sep": ":",
-#     "queue_order_strategy": "priority",
-# }
+app.conf.worker_prefetch_multiplier = 1
+app.conf.worker_cancel_long_running_tasks_on_connection_loss = True
 
 
 @setup_logging.connect
-def config_loggers(*args, **kwags):
+def config_loggers(*args, **kwargs):
     from logging.config import dictConfig
 
-    from django.conf import settings
+    from django.conf import settings as local_settings
 
-    dictConfig(settings.LOGGING)
+    dictConfig(local_settings.LOGGING)
 
 
 app.autodiscover_tasks()
 
+queue_name_by_priority = {
+    priority: queue_name for queue_name, priority in settings.TASK_QUEUES
+}
+queues_by_queue_name = {
+    queue_name: {
+        "queue": queue_name,
+        "priority": priority,
+    }
+    for queue_name, priority in settings.TASK_QUEUES
+}
+priority_tasks = (
+    (settings.TASK_HIGHEST_PRIORITY_QUEUE_NAME, settings.HIGHEST_PRIORITY_TASKS),
+    (settings.TASK_HIGH_PRIORITY_QUEUE_NAME, settings.HIGH_PRIORITY_TASKS),
+    (settings.TASK_DEFAULT_PRIORITY_QUEUE_NAME, settings.DEFAULT_PRIORITY_TASKS),
+    (settings.TASK_LOW_PRIORITY_QUEUE_NAME, settings.LOW_PRIORITY_TASKS),
+)
 
-@app.task(bind=True)
-def debug_task(self):
-    print(f"debug_task: Request: {self.request!r}")
-    return True
+
+def task_router(name, args, kwargs, options, task=None, **kw):
+    queue = (
+        queues_by_queue_name.get(options.get("queue").name)
+        if options.get("queue")
+        else None
+    )
+    if queue:
+        logger.info(f'{name} -> {queue["queue"]}: found by queue')
+        return queue
+    queue_name = queue_name_by_priority.get(options.get("priority"))
+    if queue_name:
+        logger.info(f"{name} -> {queue_name}: found by priority")
+        return queues_by_queue_name[queue_name]
+
+    queues = [queue_name for queue_name, tasks in priority_tasks if name in tasks]
+    if queues:
+        logger.info(f"{name} -> {queues[0]}: found by settings")
+        return queues_by_queue_name[queues[0]]
+    logger.info(f"{name} -> {settings.TASK_LOW_PRIORITY_QUEUE_NAME}: fallback found")
+    return queues_by_queue_name[settings.TASK_LOW_PRIORITY_QUEUE_NAME]
+
+
+@app.task()
+def test_critical_task(sleep=5, param_uuid=None):
+    import time
+
+    time.sleep(sleep)
+    return param_uuid
+
+
+@app.task()
+def test_urgent_task(sleep=5, param_uuid=None):
+    import time
+
+    time.sleep(sleep)
+    return param_uuid
+
+
+@app.task()
+def test_regular_task(sleep=5, param_uuid=None):
+    import time
+
+    time.sleep(sleep)
+    return param_uuid
+
+
+@app.task(queue="highest_priority")
+def test_regular_made_important_task(sleep=5, param_uuid=None):
+    import time
+
+    time.sleep(sleep)
+    return param_uuid
+
+
+@app.task()
+def test_not_so_important_task(sleep=5, param_uuid=None):
+    import time
+
+    time.sleep(sleep)
+    return param_uuid
+
+
+@app.task()
+def test_pg_sleep_task(sleep=121, param_uuid=None):
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute(f"select pg_sleep({sleep})")
+    return param_uuid
+
+
+@shared_task(bind=True)
+def test_mixed_priority_tasks(self, count=20, sleep=5):
+    for i in range(0, count):
+        param_uuid = str(uuid.uuid4())
+        test_not_so_important_task.delay(sleep=sleep, param_uuid=param_uuid)
+        test_regular_task.delay(sleep=sleep, param_uuid=param_uuid)
+        test_urgent_task.delay(sleep=sleep, param_uuid=param_uuid)
+        test_critical_task.delay(sleep=sleep, param_uuid=param_uuid)
+
+
+@shared_task(bind=True)
+def test_mixed_dynamic_priority_tasks(self, count=20, sleep=4):
+    for i in range(0, count):
+        test_not_so_important_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
+        # task made high prio
+        test_not_so_important_task.apply_async(
+            kwargs={"sleep": 8, "param_uuid": uuid.uuid4()}, queue="high_priority"
+        )
+        test_regular_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
+        test_critical_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
+
+
+@shared_task(bind=True)
+def test_low_priority_tasks(self, count=100, sleep=5):
+    for i in range(0, count):
+        test_not_so_important_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
+
+
+@shared_task(bind=True)
+def test_default_priority_tasks(self, count=100, sleep=5, priority=6):
+    for i in range(0, count):
+        test_regular_task.apply_async(
+            kwargs={"sleep": sleep, "param_uuid": uuid.uuid4()}, priority=priority
+        )
+
+
+@shared_task(bind=True)
+def test_highest_priority_tasks(self, count=100, sleep=5):
+    for i in range(0, count):
+        test_critical_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
+
+
+@shared_task(bind=True)
+def test_high_priority_tasks(self, count=100, sleep=5):
+    for i in range(0, count):
+        test_urgent_task.delay(sleep=sleep, param_uuid=uuid.uuid4())
+
+
+@app.task(name="celery.backend_cleanup", shared=False, lazy=False)
+def backend_cleanup():
+    from config.celery import app
+    from django_celery_results.models import GroupResult, TaskResult
+
+    def delete_expired(cls, expires, batch_size=100000):
+        qs = cls._default_manager.get_all_expired(expires).order_by("id")
+        try:
+            qs = qs.filter(status=states.SUCCESS)
+        except FieldError:
+            ...
+        while True:
+            ids = list(qs.values_list("id", flat=True)[:batch_size])
+            if not ids:
+                break
+            with transaction.atomic():
+                cls._default_manager.filter(id__in=ids).delete()
+
+    delete_expired(TaskResult, app.conf.result_expires)
+    delete_expired(GroupResult, app.conf.result_expires)

@@ -19,14 +19,16 @@ from apps.meldingen.producers import (
 from apps.meldingen.tasks import (
     task_bijlages_voor_geselecteerde_meldingen_opruimen,
     task_notificatie_voor_signaal_melding_afgesloten,
-    task_notificaties_voor_melding_veranderd,
+    task_notificaties_voor_melding_veranderd_v2,
     task_vernieuw_melding_zoek_tekst,
 )
 from apps.status.models import Status
 from apps.taken.models import Taakgebeurtenis
-from apps.taken.tasks import task_taak_aanmaken, task_taak_verwijderen
-from celery import chord
+from apps.taken.tasks import task_taak_verwijderen
+from celery import chord, states
+from celery.signals import before_task_publish
 from django.dispatch import receiver
+from django_celery_results.models import TaskResult
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +38,14 @@ def signaal_aangemaakt_handler(sender, melding, signaal, *args, **kwargs):
     if kwargs.get("raw"):
         return
     bijlages_aanmaken = [
-        task_aanmaken_afbeelding_versies.s(bijlage.pk)
+        task_aanmaken_afbeelding_versies.si(bijlage.pk)
         for bijlage in signaal.bijlagen.all()
     ]
-    notificaties_voor_melding_veranderd = task_notificaties_voor_melding_veranderd.s(
-        melding_url=melding.get_absolute_url(),
-        notificatie_type="signaal_aangemaakt",
+    notificaties_voor_melding_veranderd = (
+        task_notificaties_voor_melding_veranderd_v2.si(
+            melding_url=melding.get_absolute_url(),
+            notificatie_type="signaal_aangemaakt",
+        )
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
     task_vernieuw_melding_zoek_tekst.delay(melding.id)
@@ -60,7 +64,7 @@ def status_aangepast_handler(
             taakopdrachten=taakopdrachten,
         )
     else:
-        task_notificaties_voor_melding_veranderd.delay(
+        task_notificaties_voor_melding_veranderd_v2.delay(
             melding_url=melding.get_absolute_url(),
             notificatie_type="status_aangepast",
         )
@@ -70,7 +74,7 @@ def status_aangepast_handler(
 def urgentie_aangepast_handler(sender, melding, vorige_urgentie, *args, **kwargs):
     if kwargs.get("raw"):
         return
-    task_notificaties_voor_melding_veranderd.delay(
+    task_notificaties_voor_melding_veranderd_v2.delay(
         melding_url=melding.get_absolute_url(),
         notificatie_type="urgentie_aangepast",
     )
@@ -80,22 +84,22 @@ def urgentie_aangepast_handler(sender, melding, vorige_urgentie, *args, **kwargs
 def afgesloten_handler(sender, melding, taakopdrachten=[], *args, **kwargs):
     if kwargs.get("raw"):
         return
-    task_notificaties_voor_melding_veranderd.delay(
+    task_notificaties_voor_melding_veranderd_v2.delay(
         melding_url=melding.get_absolute_url(),
         notificatie_type="afgesloten",
     )
     for taakopdracht in taakopdrachten:
-        taakgebeurtenis = taakopdracht.taakgebeurtenissen_voor_taakopdracht.filter(
+        taakgebeurtenissen = taakopdracht.taakgebeurtenissen_voor_taakopdracht.filter(
             resolutie=Taakgebeurtenis.ResolutieOpties.GEANNULEERD
-        ).first()
+        )
         task_taak_verwijderen.delay(
             taakopdracht_id=taakopdracht.id,
-            gebruiker=taakgebeurtenis.gebruiker if taakgebeurtenis else None,
+            gebruiker=taakgebeurtenissen[0].gebruiker if taakgebeurtenissen else None,
         )
 
     if melding.status.naam == Status.NaamOpties.AFGEHANDELD:
         for signaal in melding.signalen_voor_melding.all():
-            task_notificatie_voor_signaal_melding_afgesloten.delay(signaal.pk)
+            task_notificatie_voor_signaal_melding_afgesloten.delay(signaal.uuid)
 
         task_bijlages_voor_geselecteerde_meldingen_opruimen.delay([melding.id])
 
@@ -107,12 +111,14 @@ def gebeurtenis_toegevoegd_handler(
     if kwargs.get("raw"):
         return
     bijlages_aanmaken = [
-        task_aanmaken_afbeelding_versies.s(bijlage.pk)
+        task_aanmaken_afbeelding_versies.si(bijlage.pk)
         for bijlage in meldinggebeurtenis.bijlagen.all()
     ]
-    notificaties_voor_melding_veranderd = task_notificaties_voor_melding_veranderd.s(
-        melding_url=melding.get_absolute_url(),
-        notificatie_type="gebeurtenis_toegevoegd",
+    notificaties_voor_melding_veranderd = (
+        task_notificaties_voor_melding_veranderd_v2.si(
+            melding_url=melding.get_absolute_url(),
+            notificatie_type="gebeurtenis_toegevoegd",
+        )
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
 
@@ -134,7 +140,7 @@ def melding_verwijderd_handler(
             melding_url=melding_url,
             pad=pad,
         )
-    task_notificaties_voor_melding_veranderd.delay(
+    task_notificaties_voor_melding_veranderd_v2.delay(
         melding_url=melding_url,
         notificatie_type="melding_verwijderd",
     )
@@ -146,13 +152,13 @@ def taakopdracht_aangemaakt_handler(
 ):
     if kwargs.get("raw"):
         return
-    task_notificaties_voor_melding_veranderd.delay(
+    task_notificaties_voor_melding_veranderd_v2.delay(
         melding_url=melding.get_absolute_url(),
         notificatie_type="taakopdracht_aangemaakt",
     )
-    task_taak_aanmaken.delay(
-        taakgebeurtenis_id=taakgebeurtenis.id,
-    )
+
+    # taak aanmaken task aanmaken en Taskresult db instance relateren aan taakopdracht instance
+    taakopdracht.start_task_taak_aanmaken()
 
     taakopdracht_aangemaakt_producer = TaakopdrachtAangemaaktProducer()
     taakopdracht_veranderd_producer = TaakopdrachtVeranderdProducer()
@@ -168,12 +174,14 @@ def taakopdracht_status_aangepast_handler(
         return
 
     bijlages_aanmaken = [
-        task_aanmaken_afbeelding_versies.s(bijlage.pk)
+        task_aanmaken_afbeelding_versies.si(bijlage.pk)
         for bijlage in taakgebeurtenis.bijlagen.all()
     ]
-    notificaties_voor_melding_veranderd = task_notificaties_voor_melding_veranderd.s(
-        melding_url=melding.get_absolute_url(),
-        notificatie_type="taakopdracht_notificatie",
+    notificaties_voor_melding_veranderd = (
+        task_notificaties_voor_melding_veranderd_v2.si(
+            melding_url=melding.get_absolute_url(),
+            notificatie_type="taakopdracht_notificatie",
+        )
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
 
@@ -189,4 +197,25 @@ def taakopdracht_verwijderd_handler(
         return
     task_taak_verwijderen.delay(
         taakopdracht_id=taakopdracht.id,
+    )
+    task_notificaties_voor_melding_veranderd_v2.delay(
+        melding_url=melding.get_absolute_url(),
+        notificatie_type="taakopdracht_aangemaakt",
+    )
+
+
+@before_task_publish.connect
+def create_task_result_on_publish(sender=None, headers=None, body=None, **kwargs):
+    if "task" not in headers:
+        return
+
+    TaskResult.objects.store_result(
+        "application/json",
+        "utf-8",
+        headers["id"],
+        None,
+        states.PENDING,
+        task_name=headers["task"],
+        task_args=headers["argsrepr"],
+        task_kwargs=headers["kwargsrepr"],
     )

@@ -9,8 +9,11 @@ logger = logging.getLogger(__name__)
 class TaakapplicatieAdmin(admin.ModelAdmin):
     list_display = (
         "id",
+        "uuid",
         "naam",
         "gebruiker",
+        "stuur_notificatie_melding_veranderd",
+        "stuur_notificatie_melding_afgesloten",
     )
 
     def save_model(self, request, obj, form, change):
