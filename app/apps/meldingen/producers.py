@@ -4,6 +4,7 @@ import os
 
 import pika
 from apps.meldingen.serializers import (
+    ProducerMessageMeldingSerializer,
     ProducerMessageMeldingTaakopdrachtSerializer,
     ProducerMessageTaakopdrachtSerializer,
 )
@@ -46,14 +47,37 @@ class BasisProducer:
             return
 
 
+class MeldingAangemaaktProducer(BasisProducer):
+    entity = "melding"
+    action = "aangemaakt"
+
+    def publish(self, melding):
+        self.uuid = melding.uuid
+        logger.info(f"MeldingAangemaaktProducer: melding uuid: {self.uuid}")
+
+        routing_key = f"{self.entity}.{self.uuid}.{self.action}"
+
+        serializer = ProducerMessageMeldingSerializer(
+            {
+                "entity": self.entity,
+                "action": self.action,
+                "melding": melding,
+                "uuid": self.uuid,
+                "onderwerp": melding.onderwerp,
+                "signalen": melding.signalen_voor_melding.all(),
+                "data": {},
+            }
+        )
+        self._publish(routing_key, json.dumps(serializer.data))
+
+
 class TaakopdrachtAangemaaktProducer(BasisProducer):
     entity = "taakopdracht"
     action = "aangemaakt"
 
     def publish(self, melding, taakgebeurtenis):
-        print("TaakopdrachtAangemaaktProducer: Sending to RabbitMQ: ")
-        print(taakgebeurtenis)
         self.uuid = taakgebeurtenis.taakopdracht.uuid
+        logger.info(f"TaakopdrachtAangemaaktProducer: taakopdracht uuid: {self.uuid}")
 
         routing_key = f"{self.entity}.{self.uuid}.{self.action}"
 
@@ -78,21 +102,19 @@ class TaakopdrachtVeranderdProducer(BasisProducer):
     action = "taakopdrachten_veranderd"
 
     def publish(self, melding, taakgebeurtenis):
-        print("TaakopdrachtVeranderdProducer: Sending to RabbitMQ: ")
-        print(taakgebeurtenis)
         self.uuid = melding.uuid
+        logger.info(f"TaakopdrachtVeranderdProducer: melding uuid: {self.uuid}")
 
         routing_key = f"{self.entity}.{self.uuid}.{self.action}"
 
-        onderwerpen = melding.onderwerpen.all()
         serializer = ProducerMessageMeldingTaakopdrachtSerializer(
             {
                 "entity": self.entity,
                 "action": self.action,
                 "melding": melding,
-                "uuid": melding.uuid,
+                "uuid": self.uuid,
                 "taakopdracht": taakgebeurtenis.taakopdracht,
-                "onderwerp": onderwerpen[0] if onderwerpen else None,
+                "onderwerp": melding.onderwerp,
                 "signalen": melding.signalen_voor_melding.all(),
                 "data": {"user": taakgebeurtenis.gebruiker},
             }
