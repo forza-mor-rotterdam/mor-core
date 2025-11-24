@@ -173,6 +173,7 @@ def task_taak_aanmaken_v2(self, taakopdracht_uuid):
         "taaktype": taakopdracht.taaktype,
         "titel": taakopdracht.titel,
         "bericht": taakopdracht.bericht,
+        "taakopdracht_id": taakopdracht.id,
         "taakopdracht": taakopdracht.get_absolute_url(),
         "melding": taakopdracht.melding.get_absolute_url(),
         "gebruiker": taakgebeurtenissen[0].gebruiker if taakgebeurtenissen else None,
