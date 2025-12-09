@@ -1,4 +1,4 @@
-FROM python:3.10.10-slim-bullseye
+FROM python:3.10.19-slim-trixie
 
 EXPOSE 8000
 # Expose uwsgi stats interface
@@ -21,34 +21,35 @@ RUN groupadd -r $APP_USER \
     && apt-get autoremove -y \
     && apt-get install --no-install-recommends -y \
     build-essential \
-    python-dev \
+    python-dev-is-python3 \
     unzip \
     curl \
     wget \
     dnsutils \
     vim-tiny \
     net-tools \
-    netcat \
+    netcat-traditional \
     libgeos-c1v5 \
     gdal-bin \
     postgresql-client \
-    libgdal28 \
-    libspatialite7 \
+    libgdal36 \
+    libspatialite8t64 \
     libfreexl1 \
     libgeotiff-dev \
-    libwebp6 \
+    libwebp7 \
     proj-bin \
-    mime-support \
+    media-types \
+    mailcap \
     gettext \
     libwebpmux3 \
     libwebpdemux2 \
     libxml2 \
     libfreetype6 \
-    libtiff5 \
-    libgdk-pixbuf2.0-0 \
+    libtiff6 \
+    libgdk-pixbuf-xlib-2.0-0 \
     libmagic1 \
     libcairo2 \
-    libpango1.0-0 \
+    libpango-1.0-0 \
     libpq-dev \
     gcc \
     graphviz \
