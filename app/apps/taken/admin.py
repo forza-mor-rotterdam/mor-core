@@ -182,6 +182,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
                     "taak_url",
                     "task_taak_aanmaken",
                     "taak_aanmaken_error",
+                    "afhankelijkheid",
                 )
             },
         ),

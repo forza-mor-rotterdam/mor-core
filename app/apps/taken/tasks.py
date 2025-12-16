@@ -5,6 +5,7 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import OperationalError, transaction
+from django.utils import timezone
 
 logger = get_task_logger(__name__)
 
@@ -159,6 +160,9 @@ def task_taak_aanmaken_v2(self, taakopdracht_uuid):
     if taakopdracht.taak_url:
         return f"Taak is al aangemaakt bij {taakopdracht.applicatie.naam}: taakopdracht_uuid: {taakopdracht_uuid}"
 
+    if not any(taakopdracht.klaar_voor_taakapplicatie()):
+        return f"Taak staat in de wacht: taakopdracht_uuid: {taakopdracht_uuid}"
+
     if taakopdracht.task_taak_aanmaken and taakopdracht.task_taak_aanmaken.status in [
         states.PENDING,
         states.RETRY,
@@ -191,13 +195,17 @@ def task_taak_aanmaken_v2(self, taakopdracht_uuid):
     )
     taakopdracht.taak_aanmaken_error = str(error)[:5000] if error else None
     taakopdracht.taak_url = taak_url if not error else None
-    taakopdracht.save(update_fields=["taak_url", "taak_aanmaken_error"])
+    taakopdracht.uitgezet_op = timezone.now().isoformat() if not error else None
 
     if taak_aanmaken_response.get("aangemaakt_op") and taakgebeurtenissen and not error:
-        taakgebeurtenissen[0].aangepast_op = datetime.fromisoformat(
+        aangemaakt_op = datetime.fromisoformat(
             taak_aanmaken_response.get("aangemaakt_op")
         )
+        taakgebeurtenissen[0].aangepast_op = aangemaakt_op
+        taakopdracht.uitgezet_op = aangemaakt_op
         taakgebeurtenissen[0].save(update_fields=["aangepast_op"])
+
+    taakopdracht.save(update_fields=["taak_url", "taak_aanmaken_error", "uitgezet_op"])
 
     if error:
         raise Exception(

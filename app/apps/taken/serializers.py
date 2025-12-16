@@ -176,9 +176,14 @@ class TaakopdrachtListSerializer(serializers.ModelSerializer):
         )
 
 
+class TaakopdrachtAfhankelijkheid(serializers.Serializer):
+    taakopdracht_url = serializers.URLField()
+
+
 class TaakopdrachtSerializer(serializers.ModelSerializer):
     _links = TaakopdrachtLinksSerializer(source="*", read_only=True)
     taaktype = serializers.URLField()
+    afhankelijkheid = TaakopdrachtAfhankelijkheid(many=True, required=False)
     status = TaakstatusSerializer(read_only=True)
     taakgebeurtenissen_voor_taakopdracht = TaakgebeurtenisSerializer(
         many=True, read_only=True
@@ -208,6 +213,7 @@ class TaakopdrachtSerializer(serializers.ModelSerializer):
             "taakgebeurtenissen_voor_taakopdracht",
             "taak_url",
             "task_taak_aanmaken__status",
+            "afhankelijkheid",
         )
         read_only_fields = (
             "_links",

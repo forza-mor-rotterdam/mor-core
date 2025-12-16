@@ -24,7 +24,7 @@ from apps.meldingen.tasks import (
     task_vernieuw_melding_zoek_tekst,
 )
 from apps.status.models import Status
-from apps.taken.models import Taakgebeurtenis
+from apps.taken.models import Taakgebeurtenis, Taakopdracht
 from apps.taken.tasks import task_taak_verwijderen
 from celery import chord, states
 from celery.signals import before_task_publish
@@ -162,8 +162,9 @@ def taakopdracht_aangemaakt_handler(
         notificatie_type="taakopdracht_aangemaakt",
     )
 
-    # taak aanmaken task aanmaken en Taskresult db instance relateren aan taakopdracht instance
-    taakopdracht.start_task_taak_aanmaken()
+    if all(taakopdracht.klaar_voor_taakapplicatie()):
+        # taak aanmaken task aanmaken en Taskresult db instance relateren aan taakopdracht instance
+        taakopdracht.start_task_taak_aanmaken()
 
     taakopdracht_aangemaakt_producer = TaakopdrachtAangemaaktProducer()
     taakopdracht_aangemaakt_producer.publish(melding, taakgebeurtenis)
@@ -175,6 +176,27 @@ def taakopdracht_status_aangepast_handler(
 ):
     if kwargs.get("raw"):
         return
+
+    print("taakopdracht")
+    print(taakopdracht)
+    print(taakopdracht.afgesloten_op)
+    if taakopdracht.afgesloten_op:
+        mogelijke_vervolg_taakopdrachten = Taakopdracht.objects.filter(
+            afhankelijkheid__contains=[
+                {"taakopdracht_url": taakopdracht.get_absolute_url()}
+            ]
+        )
+        print("mogelijke_vervolg_taakopdrachten.count()")
+        print(mogelijke_vervolg_taakopdrachten.count())
+        vervolg_taakopdrachten = [
+            vervolg_taakopdracht
+            for vervolg_taakopdracht in mogelijke_vervolg_taakopdrachten
+            if all(vervolg_taakopdracht.klaar_voor_taakapplicatie())
+        ]
+        print("vervolg_taakopdrachten.count()")
+        print(len(vervolg_taakopdrachten))
+        for vervolg_taakopdracht in vervolg_taakopdrachten:
+            vervolg_taakopdracht.start_task_taak_aanmaken()
 
     bijlages_aanmaken = [
         task_aanmaken_afbeelding_versies.si(bijlage.pk)

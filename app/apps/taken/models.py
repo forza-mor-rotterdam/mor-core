@@ -1,3 +1,5 @@
+import uuid
+
 from apps.bijlagen.models import Bijlage
 from apps.taken.querysets import TaakopdrachtQuerySet
 from django.conf import settings
@@ -9,7 +11,7 @@ from django_celery_results.models import TaskResult
 from rest_framework.exceptions import APIException
 from rest_framework.reverse import reverse
 from utils.django_celery_results import restart_task
-from utils.fields import DictJSONField
+from utils.fields import DictJSONField, ListJSONField
 from utils.models import BasisModel
 
 
@@ -112,6 +114,7 @@ class Taakopdracht(BasisModel):
     afgesloten_op = models.DateTimeField(null=True, blank=True)
     afhandeltijd = models.DurationField(null=True, blank=True)
     verwijderd_op = models.DateTimeField(null=True, blank=True)
+    uitgezet_op = models.DateTimeField(null=True, blank=True)
     melding = models.ForeignKey(
         to="meldingen.Melding",
         related_name="taakopdrachten_voor_melding",
@@ -149,6 +152,7 @@ class Taakopdracht(BasisModel):
         null=True,
     )
     additionele_informatie = DictJSONField(default=dict)
+    afhankelijkheid = ListJSONField(default=list)
 
     taak_url = models.CharField(
         max_length=200,
@@ -256,3 +260,35 @@ class Taakopdracht(BasisModel):
             kwargs={"uuid": self.uuid},
         )
         return f"{url_basis}{pad}"
+
+    def api_url_to_uuid(self, taakopdracht_url):
+        try:
+            return uuid.UUID(taakopdracht_url.strip("/").split("/")[-1])
+        except Exception:
+            return
+
+    def klaar_voor_taakapplicatie(self):
+        taakopdracht_afhankelijkheid = [
+            self.api_url_to_uuid(afhankelijkheid.get("taakopdracht_url"))
+            for afhankelijkheid in self.afhankelijkheid
+            if afhankelijkheid.get("taakopdracht_url")
+        ]
+        print(f"klaar_voor_taakapplicatie: uuids={len(taakopdracht_afhankelijkheid)}")
+        taakopdrachten_afgehandeld = self.__class__.objects.filter(
+            uuid__in=[
+                taakopdracht_uuid
+                for taakopdracht_uuid in taakopdracht_afhankelijkheid
+                if taakopdracht_uuid
+            ],
+            afgesloten_op__isnull=False,
+        )
+        taakopdracht_aantal = taakopdrachten_afgehandeld.count()
+        taakopdrachten_afgehandeld_niet_opgelost = taakopdrachten_afgehandeld.exclude(
+            resolutie=Taakopdracht.ResolutieOpties.OPGELOST
+        )
+        print(f"klaar_voor_taakapplicatie: taakopdracht_aantal={taakopdracht_aantal}")
+
+        return (
+            not bool(taakopdrachten_afgehandeld_niet_opgelost),
+            len(taakopdracht_afhankelijkheid) == taakopdracht_aantal,
+        )
