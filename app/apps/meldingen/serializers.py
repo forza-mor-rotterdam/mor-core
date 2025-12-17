@@ -426,6 +426,7 @@ class MeldingDetailSerializer(MeldingSerializer):
             "meta",
             "meta_uitgebreid",
             "onderwerpen",
+            "onderwerp",
             "bijlagen",
             "referentie_locatie",
             "locaties_voor_melding",
@@ -450,6 +451,7 @@ class MeldingDetailSerializer(MeldingSerializer):
             "meta",
             "meta_uitgebreid",
             "onderwerpen",
+            "onderwerp",
             "bijlagen",
             "referentie_locatie",
             "locaties_voor_melding",
@@ -509,8 +511,7 @@ class ProducerMessageMeldingLinksSerializer(ProducerMessageLinksSerializer):
 
     @extend_schema_field(LinkSerializer())
     def get_onderwerp(self, obj):
-        serializer = LinkSerializer({"href": obj["onderwerp"].bron_url})
-        return serializer.data
+        return obj["onderwerp"]
 
     @extend_schema_field(LinkSerializer(many=True))
     def get_signalen(self, obj):

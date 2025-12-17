@@ -97,6 +97,7 @@ class MeldingAdmin(admin.ModelAdmin):
         "afgesloten_op",
         "status_naam",
         "onderwerp_naam",
+        "onderwerp",
         "referentie_locatie",
         "origineel_aangemaakt",
         "aangemaakt_op",

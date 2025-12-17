@@ -13,6 +13,7 @@ from apps.meldingen.managers import (
     verwijderd,
 )
 from apps.meldingen.producers import (
+    MeldingAangemaaktProducer,
     TaakopdrachtAangemaaktProducer,
     TaakopdrachtVeranderdProducer,
 )
@@ -49,6 +50,10 @@ def signaal_aangemaakt_handler(sender, melding, signaal, *args, **kwargs):
     )
     chord(bijlages_aanmaken, notificaties_voor_melding_veranderd)()
     task_vernieuw_melding_zoek_tekst.delay(melding.id)
+
+    if melding.meldinggebeurtenissen_voor_melding.count() == 1:
+        melding_aangemaakt_producer = MeldingAangemaaktProducer()
+        melding_aangemaakt_producer.publish(melding)
 
 
 @receiver(status_aangepast, dispatch_uid="melding_status_aangepast")
@@ -161,9 +166,7 @@ def taakopdracht_aangemaakt_handler(
     taakopdracht.start_task_taak_aanmaken()
 
     taakopdracht_aangemaakt_producer = TaakopdrachtAangemaaktProducer()
-    taakopdracht_veranderd_producer = TaakopdrachtVeranderdProducer()
     taakopdracht_aangemaakt_producer.publish(melding, taakgebeurtenis)
-    taakopdracht_veranderd_producer.publish(melding, taakgebeurtenis)
 
 
 @receiver(taakopdracht_notificatie, dispatch_uid="taakopdracht_notificatie")
