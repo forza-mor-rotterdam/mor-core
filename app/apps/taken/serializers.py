@@ -153,6 +153,7 @@ class TaakopdrachtListSerializer(serializers.ModelSerializer):
             "bericht",
             "verwijderd_op",
             "afgesloten_op",
+            "uitgezet_op",
             "status",
             "resolutie",
             "taak_url",
@@ -168,6 +169,7 @@ class TaakopdrachtListSerializer(serializers.ModelSerializer):
             "bericht",
             "verwijderd_op",
             "afgesloten_op",
+            "uitgezet_op",
             "status",
             "resolutie",
             "taak_url",
@@ -207,6 +209,7 @@ class TaakopdrachtSerializer(serializers.ModelSerializer):
             "uuid",
             "verwijderd_op",
             "afgesloten_op",
+            "uitgezet_op",
             "status",
             "resolutie",
             "melding",
@@ -221,6 +224,7 @@ class TaakopdrachtSerializer(serializers.ModelSerializer):
             "uuid",
             "verwijderd_op",
             "afgesloten_op",
+            "uitgezet_op",
             "status",
             "resolutie",
             "melding",
@@ -308,3 +312,9 @@ class TaaktypeAantallenSerializer(serializers.Serializer):
 
 class TaakopdrachtHerstartTaskTaakAanmakenSerializer(serializers.Serializer):
     taakopdrachten = serializers.ListField(child=serializers.UUIDField())
+
+
+class TaakopdrachtUitzettenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Taakgebeurtenis
+        fields = ("gebruiker",)

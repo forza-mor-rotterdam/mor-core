@@ -132,6 +132,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
         "aangemaakt_op",
         "aangepast_op",
         "afgesloten_op",
+        "uitgezet_op",
         "verwijderd_op",
         "pretty_afhandeltijd",
         "melding__afgesloten_op",
@@ -183,6 +184,7 @@ class TaakopdrachtAdmin(admin.ModelAdmin):
                     "task_taak_aanmaken",
                     "taak_aanmaken_error",
                     "afhankelijkheid",
+                    "uitgezet_op",
                 )
             },
         ),

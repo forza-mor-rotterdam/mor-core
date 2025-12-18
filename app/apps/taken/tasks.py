@@ -160,7 +160,7 @@ def task_taak_aanmaken_v2(self, taakopdracht_uuid):
     if taakopdracht.taak_url:
         return f"Taak is al aangemaakt bij {taakopdracht.applicatie.naam}: taakopdracht_uuid: {taakopdracht_uuid}"
 
-    if not any(taakopdracht.klaar_voor_taakapplicatie()):
+    if not all(taakopdracht.klaar_voor_taakapplicatie()):
         return f"Taak staat in de wacht: taakopdracht_uuid: {taakopdracht_uuid}"
 
     if taakopdracht.task_taak_aanmaken and taakopdracht.task_taak_aanmaken.status in [

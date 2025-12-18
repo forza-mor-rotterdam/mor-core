@@ -268,12 +268,15 @@ class Taakopdracht(BasisModel):
             return
 
     def klaar_voor_taakapplicatie(self):
+        print("")
         taakopdracht_afhankelijkheid = [
             self.api_url_to_uuid(afhankelijkheid.get("taakopdracht_url"))
             for afhankelijkheid in self.afhankelijkheid
             if afhankelijkheid.get("taakopdracht_url")
         ]
-        print(f"klaar_voor_taakapplicatie: uuids={len(taakopdracht_afhankelijkheid)}")
+        print(
+            f"klaar_voor_taakapplicatie: {self.titel}, afhankelijk van uuids={len(taakopdracht_afhankelijkheid)}"
+        )
         taakopdrachten_afgehandeld = self.__class__.objects.filter(
             uuid__in=[
                 taakopdracht_uuid
@@ -284,11 +287,25 @@ class Taakopdracht(BasisModel):
         )
         taakopdracht_aantal = taakopdrachten_afgehandeld.count()
         taakopdrachten_afgehandeld_niet_opgelost = taakopdrachten_afgehandeld.exclude(
-            resolutie=Taakopdracht.ResolutieOpties.OPGELOST
+            Q(resolutie=Taakopdracht.ResolutieOpties.OPGELOST)
+            | Q(verwijderd_op__isnull=False),
         )
-        print(f"klaar_voor_taakapplicatie: taakopdracht_aantal={taakopdracht_aantal}")
+        print(
+            f"klaar_voor_taakapplicatie: afhankelijk van niet correcte taakopdrachten={taakopdrachten_afgehandeld_niet_opgelost.count()}"
+        )
+        print(
+            f"klaar_voor_taakapplicatie: afhankelijk van taakopdrachten afgehandeld={taakopdracht_aantal}"
+        )
+        print("")
 
         return (
             not bool(taakopdrachten_afgehandeld_niet_opgelost),
             len(taakopdracht_afhankelijkheid) == taakopdracht_aantal,
+        )
+
+    def mogelijke_vervolg_taakopdrachten(self):
+        return Taakopdracht.objects.filter(
+            afhankelijkheid__contains=[{"taakopdracht_url": self.get_absolute_url()}],
+            afgesloten_op__isnull=True,
+            verwijderd_op__isnull=True,
         )
