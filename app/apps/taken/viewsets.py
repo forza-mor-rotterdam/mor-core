@@ -152,7 +152,7 @@ class TaakopdrachtViewSet(
             )
             | Q(
                 task_taak_aanmaken__isnull=False,
-                task_taak_aanmaken__status=states.FAILURE,
+                task_taak_aanmaken__status__in=[states.FAILURE, states.SUCCESS],
             )
         )
         taakopdrachten_herstart = []

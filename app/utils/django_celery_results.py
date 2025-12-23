@@ -2,10 +2,15 @@ import ast
 import importlib
 import json
 
+from celery import states
+
 
 def restart_task(original_task):
-    if original_task.status != "FAILURE":
-        return False, f'{original_task.task_id} => Skipped. Not in "FAILURE" State'
+    if original_task.status not in [states.FAILURE, states.SUCCESS]:
+        return (
+            False,
+            f'{original_task.task_id} => Skipped. Not in "{states.FAILURE}" or "{states.SUCCESS}" State',
+        )
     try:
         task_actual_name = original_task.task_name.split(".")[-1]
         module_name = ".".join(original_task.task_name.split(".")[:-1])

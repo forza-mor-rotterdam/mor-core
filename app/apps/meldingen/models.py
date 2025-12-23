@@ -36,6 +36,7 @@ class Meldinggebeurtenis(BasisModel):
         MELDING_AANGEMAAKT = "melding_aangemaakt", "Melding aangemaakt"
         TAAKOPDRACHT_AANGEMAAKT = "taakopdracht_aangemaakt", "Taakopdracht aangemaakt"
         TAAKOPDRACHT_VERWIJDERD = "taakopdracht_verwijderd", "Taakopdracht verwijderd"
+        TAAKOPDRACHT_UITGEZET = "taakopdracht_uitgezet", "Taakopdracht uitgezet"
         TAAKOPDRACHT_NOTIFICATIE = (
             "taakopdracht_notificatie",
             "Taakopdracht notificatie",
@@ -311,7 +312,8 @@ class Melding(BasisModel):
                         Taakstatus.NaamOpties.VOLTOOID_MET_FEEDBACK,
                     ]
                 )
-                | Q(verwijderd_op__isnull=False),
+                | Q(verwijderd_op__isnull=False)
+                | Q(uitgezet_op__isnull=True),
             )
         )
         return taakopdrachten_voor_melding_zonder_valide_taken
