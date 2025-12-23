@@ -485,6 +485,19 @@ class MeldingAantallenSerializer(serializers.Serializer):
     onderwerp = serializers.CharField(source="onderwerp_naam")
 
 
+class MeldingStatusBuurtAantalSerializer(serializers.Serializer):
+    status = serializers.CharField(source="naam")
+    buurt = serializers.CharField(source="buurtnaam")
+    wijk = serializers.CharField(source="wijknaam")
+    count = serializers.IntegerField()
+
+
+class MeldingAfgehandeldPerBuurtAantalSerializer(serializers.Serializer):
+    buurt = serializers.CharField(source="buurtnaam")
+    wijk = serializers.CharField(source="wijknaam")
+    count = serializers.IntegerField()
+
+
 class ProducerMessageMetaSerializer(serializers.Serializer):
     created = serializers.DateTimeField()
     publisher = serializers.URLField()

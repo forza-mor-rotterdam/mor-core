@@ -18,7 +18,7 @@ djangorestframework-gis==1.2.0
 djangorestframework-xml==2.0.0
 drf-extensions==0.8.0
 drf-writable-nested==0.7.2
-drf-spectacular==0.28.0
+drf-spectacular==0.29.0
 drf-extra-fields==3.7.0
 drf_base64
 factory-boy==3.2.1

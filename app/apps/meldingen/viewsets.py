@@ -8,12 +8,14 @@ from apps.meldingen.filtersets import (
 from apps.meldingen.models import Melding, Meldinggebeurtenis, Specificatie
 from apps.meldingen.serializers import (
     MeldingAantallenSerializer,
+    MeldingAfgehandeldPerBuurtAantalSerializer,
     MeldingDetailSerializer,
     MeldingGebeurtenisAfhandelenSerializer,
     MeldinggebeurtenisSerializer,
     MeldingGebeurtenisStatusSerializer,
     MeldingGebeurtenisUrgentieSerializer,
     MeldingSerializer,
+    MeldingStatusBuurtAantalSerializer,
     SpecificatieSerializer,
 )
 from apps.taken.serializers import (
@@ -134,7 +136,6 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         )
         .all()
     )
-    prefiltered_queryset = None
     serializer_class = MeldingSerializer
     serializer_detail_class = MeldingDetailSerializer
     filter_backends = (
@@ -558,6 +559,55 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         with db(settings.READONLY_DATABASE_KEY):
             serializer = MeldingAantallenSerializer(
                 self.filter_queryset(self.get_queryset()).nieuwe_meldingen(),
+                context={"request": request},
+                many=True,
+            )
+        return Response(serializer.data)
+
+    @extend_schema(
+        description="Melding aantallen per wijk, buurt en status",
+        responses={status.HTTP_200_OK: MeldingStatusBuurtAantalSerializer(many=True)},
+        parameters=[],
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="status-buurt-aantallen",
+        serializer_class=MeldingStatusBuurtAantalSerializer,
+        filter_backends=(),
+        pagination_class=None,
+    )
+    def melding_status_buurt_aantallen(self, request):
+        with db(settings.READONLY_DATABASE_KEY):
+            serializer = MeldingStatusBuurtAantalSerializer(
+                Melding.objects.melding_status_buurt_aantallen(),
+                context={"request": request},
+                many=True,
+            )
+        return Response(serializer.data)
+
+    @extend_schema(
+        description="Afgehandelde melding aantallen in een periode (standaard periode is afgelopen 24 uur)",
+        responses={
+            status.HTTP_200_OK: MeldingAfgehandeldPerBuurtAantalSerializer(many=True)
+        },
+        parameters=[],
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="afgehandeld-aantallen",
+        serializer_class=MeldingAfgehandeldPerBuurtAantalSerializer,
+        filter_backends=(),
+        pagination_class=None,
+        filterset_class=None,
+    )
+    def melding_afgehandeld_per_buurt_aantallen(self, request):
+        with db(settings.READONLY_DATABASE_KEY):
+            serializer = MeldingAfgehandeldPerBuurtAantalSerializer(
+                self.filter_queryset(
+                    self.get_queryset()
+                ).melding_afgehandeld_per_buurt_aantallen(),
                 context={"request": request},
                 many=True,
             )
