@@ -39,9 +39,19 @@ class MeldingQuerySet(QuerySet):
             melding_status_buurt_aantallen_results = self.dictfetchall(cursor)
         return melding_status_buurt_aantallen_results
 
-    def melding_afgehandeld_per_buurt_aantallen(self, dt_from=None, dt_to=None):
-        if not dt_from:
-            dt_from = (timezone.now() - timedelta(hours=24)).isoformat()
+    def melding_afgehandeld_per_buurt_aantallen(
+        self, afgesloten_op_gt, afgesloten_op_lte
+    ):
+        try:
+            afgesloten_op_gt = afgesloten_op_gt.isoformat()
+        except Exception:
+            afgesloten_op_gt = (timezone.now() - timedelta(hours=24)).isoformat()
+
+        sq_where_to = ""
+        try:
+            sq_where_to = f'AND "meldingen_melding"."afgesloten_op" <= \'{afgesloten_op_lte.isoformat()}\''
+        except Exception:
+            ...
 
         sql = f'SELECT "locatie_locatie"."wijknaam", \
             "locatie_locatie"."buurtnaam", \
@@ -49,7 +59,8 @@ class MeldingQuerySet(QuerySet):
             FROM "meldingen_melding" \
                 JOIN "locatie_locatie" ON ("locatie_locatie"."id" = "meldingen_melding"."referentie_locatie_id") \
             WHERE \
-                "meldingen_melding"."afgesloten_op" >= \'{dt_from}\' \
+                "meldingen_melding"."afgesloten_op" > \'{afgesloten_op_gt}\' \
+                {sq_where_to} \
             GROUP BY "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" \
             ORDER BY "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" ASC; \
         '
