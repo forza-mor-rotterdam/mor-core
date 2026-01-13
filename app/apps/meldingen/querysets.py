@@ -20,8 +20,14 @@ class MeldingQuerySet(QuerySet):
         columns = [col[0] for col in cursor.description]
         return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
-    def melding_status_buurt_aantallen(self):
-        sql = 'SELECT "status_status"."naam", \
+    def melding_status_buurt_aantallen(self, spoed_start=0, spoed_end=1.1):
+        spoed_qs = ""
+        if isinstance(spoed_start, (float | int)) and isinstance(
+            spoed_end, (float | int)
+        ):
+            spoed_qs = f'AND "meldingen_melding"."urgentie" >= {float(spoed_start)} AND "meldingen_melding"."urgentie" < {float(spoed_end)}'
+
+        sql = f'SELECT "status_status"."naam", \
             "locatie_locatie"."wijknaam", \
             "locatie_locatie"."buurtnaam", \
             COUNT("status_status"."naam") AS "count" \
@@ -30,6 +36,7 @@ class MeldingQuerySet(QuerySet):
                 JOIN "locatie_locatie" ON ("locatie_locatie"."id" = "meldingen_melding"."referentie_locatie_id") \
             WHERE \
                 "locatie_locatie"."buurtnaam" IS NOT NULL \
+                {spoed_qs} \
             GROUP BY "status_status"."naam", "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" \
             ORDER BY "status_status"."naam", "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" ASC; \
         '
@@ -61,6 +68,42 @@ class MeldingQuerySet(QuerySet):
             WHERE \
                 "meldingen_melding"."afgesloten_op" > \'{afgesloten_op_gt}\' \
                 {sq_where_to} \
+            GROUP BY "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" \
+            ORDER BY "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" ASC; \
+        '
+        melding_status_buurt_aantallen_results = []
+        with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
+            cursor.execute(sql)
+            melding_status_buurt_aantallen_results = self.dictfetchall(cursor)
+        return melding_status_buurt_aantallen_results
+
+    def melding_aangemaakt_per_buurt_aantallen(
+        self, aangemaakt_op_gt, aangemaakt_op_lte, openstaand=True
+    ):
+        try:
+            aangemaakt_op_gt = aangemaakt_op_gt.isoformat()
+        except Exception:
+            aangemaakt_op_gt = (timezone.now() - timedelta(hours=24)).isoformat()
+
+        sq_where_to = ""
+        try:
+            sq_where_to = f'AND "meldingen_melding"."aangemaakt_op" <= \'{aangemaakt_op_lte.isoformat()}\''
+        except Exception:
+            ...
+
+        sq_openstaand = ""
+        if openstaand:
+            sq_openstaand = 'AND "meldingen_melding"."afgesloten_op" IS NULL'
+
+        sql = f'SELECT "locatie_locatie"."wijknaam", \
+            "locatie_locatie"."buurtnaam", \
+            COUNT(*) AS "count" \
+            FROM "meldingen_melding" \
+                JOIN "locatie_locatie" ON ("locatie_locatie"."id" = "meldingen_melding"."referentie_locatie_id") \
+            WHERE \
+                "meldingen_melding"."aangemaakt_op" > \'{aangemaakt_op_gt}\' \
+                {sq_where_to} \
+                {sq_openstaand} \
             GROUP BY "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" \
             ORDER BY "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" ASC; \
         '
