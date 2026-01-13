@@ -9,6 +9,7 @@ from apps.meldingen.filtersets import (
 from apps.meldingen.models import Melding, Meldinggebeurtenis, Specificatie
 from apps.meldingen.serializers import (
     MeldingAantallenSerializer,
+    MeldingAfgehandeldPerBuurtAantalPaginatedSerializer,
     MeldingAfgehandeldPerBuurtAantalSerializer,
     MeldingDetailSerializer,
     MeldingGebeurtenisAfhandelenSerializer,
@@ -16,6 +17,7 @@ from apps.meldingen.serializers import (
     MeldingGebeurtenisStatusSerializer,
     MeldingGebeurtenisUrgentieSerializer,
     MeldingSerializer,
+    MeldingStatusBuurtAantalPaginatedSerializer,
     MeldingStatusBuurtAantalSerializer,
     SpecificatieSerializer,
 )
@@ -577,31 +579,48 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         description="Melding aantallen per wijk, buurt en status",
-        responses={status.HTTP_200_OK: MeldingStatusBuurtAantalSerializer(many=True)},
-        parameters=[],
+        responses={status.HTTP_200_OK: MeldingStatusBuurtAantalPaginatedSerializer()},
+        parameters=[
+            OpenApiParameter("spoed", OpenApiTypes.STR, OpenApiParameter.QUERY),
+        ],
     )
     @action(
         detail=False,
         methods=["get"],
         url_path="status-buurt-aantallen",
-        serializer_class=MeldingStatusBuurtAantalSerializer,
+        serializer_class=MeldingStatusBuurtAantalPaginatedSerializer,
         filter_backends=(),
         pagination_class=None,
         filterset_class=None,
     )
     def melding_status_buurt_aantallen(self, request):
+        spoed = self.request.GET.get("spoed")
+        spoed_start = 0
+        spoed_end = 1.1
+        if spoed:
+            spoed_start = 0.5 if spoed == "true" else 0
+            spoed_end = 1.1 if spoed == "true" else 0.5
+
         with db(settings.READONLY_DATABASE_KEY):
             serializer = MeldingStatusBuurtAantalSerializer(
-                Melding.objects.melding_status_buurt_aantallen(),
+                Melding.objects.melding_status_buurt_aantallen(
+                    spoed_start=spoed_start,
+                    spoed_end=spoed_end,
+                ),
                 context={"request": request},
                 many=True,
             )
-        return Response(serializer.data)
+        return Response(
+            {
+                "count": len(serializer.data),
+                "results": serializer.data,
+            }
+        )
 
     @extend_schema(
         description="Afgehandelde melding aantallen in een periode (standaard periode is afgelopen 24 uur)",
         responses={
-            status.HTTP_200_OK: MeldingAfgehandeldPerBuurtAantalSerializer(many=True)
+            status.HTTP_200_OK: MeldingAfgehandeldPerBuurtAantalPaginatedSerializer()
         },
         parameters=[
             OpenApiParameter(
@@ -617,7 +636,7 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         detail=False,
         methods=["get"],
         url_path="afgehandeld-aantallen",
-        serializer_class=MeldingAfgehandeldPerBuurtAantalSerializer,
+        serializer_class=MeldingAfgehandeldPerBuurtAantalPaginatedSerializer,
         filter_backends=(),
         pagination_class=None,
         filterset_class=None,
@@ -647,7 +666,68 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
                 context={"request": request},
                 many=True,
             )
-        return Response(serializer.data)
+        return Response(
+            {
+                "count": len(serializer.data),
+                "results": serializer.data,
+            }
+        )
+
+    @extend_schema(
+        description="Aangemaakte melding aantallen in een periode (standaard periode is afgelopen 24 uur, standaard niet afgehandeld)",
+        responses={
+            status.HTTP_200_OK: MeldingAfgehandeldPerBuurtAantalPaginatedSerializer()
+        },
+        parameters=[
+            OpenApiParameter(
+                "aangemaakt_op_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "aangemaakt_op_lte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+        ],
+        filters=False,
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="aangemaakt-aantallen",
+        serializer_class=MeldingAfgehandeldPerBuurtAantalPaginatedSerializer,
+        filter_backends=(),
+        pagination_class=None,
+        filterset_class=None,
+    )
+    def melding_aangemaakt_per_buurt_aantallen(self, request):
+        aangemaakt_op_gt = (timezone.now() - timedelta(hours=24)).isoformat()
+        aangemaakt_op_lte = timezone.now().isoformat()
+        try:
+            aangemaakt_op_gt = datetime.fromisoformat(
+                self.request.GET.get("aangemaakt_op_gt", aangemaakt_op_gt)
+            )
+        except Exception:
+            ...
+        try:
+            aangemaakt_op_lte = datetime.fromisoformat(
+                self.request.GET.get("aangemaakt_op_lte", aangemaakt_op_lte)
+            )
+        except Exception:
+            ...
+
+        with db(settings.READONLY_DATABASE_KEY):
+            serializer = MeldingAfgehandeldPerBuurtAantalSerializer(
+                Melding.objects.melding_aangemaakt_per_buurt_aantallen(
+                    aangemaakt_op_gt=aangemaakt_op_gt,
+                    aangemaakt_op_lte=aangemaakt_op_lte,
+                ),
+                context={"request": request},
+                many=True,
+            )
+        return Response(
+            {
+                "count": len(serializer.data),
+                "results": serializer.data,
+            }
+        )
 
 
 @extend_schema(

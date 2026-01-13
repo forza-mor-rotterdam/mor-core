@@ -75,6 +75,7 @@ INSTALLED_APPS = (
     "rest_framework",
     "rest_framework.authtoken",
     "rest_framework_gis",
+    "shapeless_serializers",
     "drf_spectacular",
     "django_filters",
     "corsheaders",
