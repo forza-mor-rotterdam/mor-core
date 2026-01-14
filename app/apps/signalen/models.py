@@ -28,6 +28,8 @@ class Signaal(BasisModel):
     signaal_data = DictJSONField(default=dict)
     bron_id = models.CharField(max_length=500, null=True, blank=True)
     bron_signaal_id = models.CharField(max_length=500, null=True, blank=True)
+    kanaal = models.CharField(max_length=500, null=True, blank=True)
+    versie = models.CharField(max_length=500, null=True, blank=True)
     origineel_aangemaakt = models.DateTimeField(null=True, blank=True)
     urgentie = models.FloatField(default=0.2)
     omschrijving_melder = models.CharField(max_length=2000, null=True, blank=True)

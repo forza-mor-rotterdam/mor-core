@@ -193,11 +193,14 @@ class SignaalSerializer(WritableNestedModelSerializer):
             "signaal_data",
             "bron_id",
             "bron_signaal_id",
+            "kanaal",
+            "versie",
             "origineel_aangemaakt",
             "urgentie",
             "omschrijving_melder",
             "aanvullende_informatie",
             "aanvullende_vragen",
+            "gebruiker",
             "meta",
             "meta_uitgebreid",
             "onderwerpen",
@@ -209,7 +212,6 @@ class SignaalSerializer(WritableNestedModelSerializer):
             "aangemaakt_op",
             "melding",
             "locaties_voor_signaal",
-            "gebruiker",
         )
         read_only_fields = (
             "signaal_data",
