@@ -157,6 +157,7 @@ class SignaalSerializer(WritableNestedModelSerializer):
     melder = MelderSerializer(required=False)
     locaties_voor_signaal = LocatieSerializer(many=True, read_only=True)
     melding = MeldingSignaalSerializer(required=False, read_only=True)
+    gebruiker = serializers.CharField(required=False, allow_null=True)
 
     def validate_signaal_url(self, data):
         applicatie = Applicatie.vind_applicatie_obv_uri(data)
@@ -192,11 +193,14 @@ class SignaalSerializer(WritableNestedModelSerializer):
             "signaal_data",
             "bron_id",
             "bron_signaal_id",
+            "kanaal",
+            "versie",
             "origineel_aangemaakt",
             "urgentie",
             "omschrijving_melder",
             "aanvullende_informatie",
             "aanvullende_vragen",
+            "gebruiker",
             "meta",
             "meta_uitgebreid",
             "onderwerpen",
