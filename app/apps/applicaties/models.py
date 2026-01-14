@@ -174,13 +174,13 @@ class Applicatie(BasisModel):
         )
         return {}
 
-    def notificatie_melding_afgesloten(self, signaal_url):
+    def notificatie_melding_afgesloten(self, signaal_url, melding_url=None):
         if not self.stuur_notificatie_melding_afgesloten:
             return {}
         api_service = self.api_service()
         api_service_call = getattr(api_service, "notificatie_melding_afgesloten", None)
         if callable(api_service_call):
-            return api_service_call(signaal_url)
+            return api_service_call(signaal_url, data={"melding_url": melding_url})
 
         logger.warning(
             f"API Service({api_service}) heeft geen methode 'notificatie_melding_afgesloten'"

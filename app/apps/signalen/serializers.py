@@ -85,6 +85,8 @@ class MeldingSignaalSerializer(serializers.ModelSerializer):
         model = Melding
         fields = (
             "_links",
+            "id",
+            "uuid",
             "meta",
             "aangemaakt_op",
             "aangepast_op",
@@ -154,6 +156,7 @@ class SignaalSerializer(WritableNestedModelSerializer):
     onderwerpen = OnderwerpAliasSerializer(many=True, required=False)
     melder = MelderSerializer(required=False)
     locaties_voor_signaal = LocatieSerializer(many=True, read_only=True)
+    melding = MeldingSignaalSerializer(required=False, read_only=True)
 
     def validate_signaal_url(self, data):
         applicatie = Applicatie.vind_applicatie_obv_uri(data)
