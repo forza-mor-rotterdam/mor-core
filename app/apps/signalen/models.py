@@ -69,7 +69,10 @@ class Signaal(BasisModel):
     def notificatie_melding_afgesloten(self):
         applicatie = Applicatie.vind_applicatie_obv_uri(self.signaal_url)
         if applicatie:
-            return applicatie.notificatie_melding_afgesloten(self.signaal_url)
+            melding_url = self.melding.get_absolute_url()
+            return applicatie.notificatie_melding_afgesloten(
+                self.signaal_url, melding_url=melding_url
+            )
         logger.warning(
             f"De notificatie naar de applicatie waar de melding vandaan komt, kon niet worden verstuurd: url={self.signaal_url}"
         )
