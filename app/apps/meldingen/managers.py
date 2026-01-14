@@ -74,9 +74,10 @@ class MeldingManager(models.Manager):
         from apps.status.models import Status
 
         with transaction.atomic():
+            gebruiker = serializer.validated_data.pop("gebruiker", None)
             signaal = serializer.save()
             melding = signaal.melding
-            melding_gebeurtenis_data = {}
+            melding_gebeurtenis_data = {"gebruiker": gebruiker}
 
             if not melding:
                 # Als het signaal geen melding relatie heeft, wordt een nieuwe melding aangemaakt
