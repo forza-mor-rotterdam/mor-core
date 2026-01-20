@@ -68,6 +68,9 @@ class AdresSerializer(AdresBasisSerializer, serializers.ModelSerializer):
     toevoeging = serializers.CharField(
         max_length=4, required=False, allow_blank=True, allow_null=True
     )
+    postcode = serializers.CharField(
+        max_length=7, required=False, allow_blank=True, allow_null=True
+    )
 
     class Meta:
         model = Adres
