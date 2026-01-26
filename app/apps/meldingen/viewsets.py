@@ -578,7 +578,7 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
     @extend_schema(
-        description="Melding aantallen per wijk, buurt en status",
+        description="Melding aantallen per wijk, buurt en status, om alleen spoed meldingen te zoeken, moet de spoed parameter 'true' bevatten, als er een andere waarde wordt gebruikt, worden alleen niet spoed meldingen gevonden. Bij het ontbreken van de spoed parameter worden alle meldingen gevonden.",
         responses={status.HTTP_200_OK: MeldingStatusBuurtAantalPaginatedSerializer()},
         parameters=[
             OpenApiParameter("spoed", OpenApiTypes.STR, OpenApiParameter.QUERY),
