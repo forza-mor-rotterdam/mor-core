@@ -26,7 +26,16 @@ def task_notificatie_voor_signaal_melding_afgesloten(self, signaal_uuid):
     from apps.signalen.models import Signaal
 
     signaal_instantie = Signaal.objects.get(uuid=signaal_uuid)
-    signaal_instantie.notificatie_melding_afgesloten()
+    response = signaal_instantie.notificatie_melding_afgesloten()
+    error = response.get("error", {})
+    if error.get("status_code") in [404]:
+        logger.warning(
+            f"task_notificatie_voor_signaal_melding_afgesloten: signaal_uuid={signaal_uuid} is niet gevonden"
+        )
+    if error.get("status_code") not in [404]:
+        raise Exception(
+            f"task_notificatie_voor_signaal_melding_afgesloten error: {error}, signaal_uuid={signaal_uuid}"
+        )
 
     return f"Signaal uuid: {signaal_instantie.uuid}"
 
