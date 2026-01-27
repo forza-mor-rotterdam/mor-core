@@ -151,11 +151,11 @@ class Applicatie(BasisModel):
             wachtwoord_decrypted
         )
 
-    def haal_token(self):
+    def haal_token(self, force_cache=False):
         api_service = self.api_service()
         api_service_call = getattr(api_service, "haal_token", None)
         if callable(api_service_call):
-            return api_service_call(force_cache=True)
+            return api_service_call(force_cache=force_cache)
         return None
 
     def melding_veranderd_notificatie_voor_applicatie(
