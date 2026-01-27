@@ -13,12 +13,17 @@ logger = get_task_logger(__name__)
 
 DEFAULT_RETRY_DELAY = 2
 MAX_RETRIES = 6
+RETRY_BACKOFF_MAX = 60 * 30
+RETRY_BACKOFF = 120
 
 
 class BaseTaskWithRetry(celery.Task):
     autoretry_for = (Exception,)
     max_retries = MAX_RETRIES
     default_retry_delay = DEFAULT_RETRY_DELAY
+    retry_backoff_max = RETRY_BACKOFF_MAX
+    retry_backoff = RETRY_BACKOFF
+    retry_jitter = True
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
