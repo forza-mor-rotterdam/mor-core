@@ -155,7 +155,7 @@ class Applicatie(BasisModel):
         api_service = self.api_service()
         api_service_call = getattr(api_service, "haal_token", None)
         if callable(api_service_call):
-            return api_service_call()
+            return api_service_call(force_cache=True)
         return None
 
     def melding_veranderd_notificatie_voor_applicatie(
