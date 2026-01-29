@@ -36,6 +36,8 @@ class MeldingQuerySet(QuerySet):
                 JOIN "locatie_locatie" ON ("locatie_locatie"."id" = "meldingen_melding"."referentie_locatie_id") \
             WHERE \
                 "locatie_locatie"."buurtnaam" IS NOT NULL \
+                AND "locatie_locatie"."wijknaam" IS NOT NULL \
+                AND "locatie_locatie"."locatie_type" = \'adres\' \
                 {spoed_qs} \
             GROUP BY "status_status"."naam", "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" \
             ORDER BY "status_status"."naam", "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" ASC; \
@@ -67,6 +69,9 @@ class MeldingQuerySet(QuerySet):
                 JOIN "locatie_locatie" ON ("locatie_locatie"."id" = "meldingen_melding"."referentie_locatie_id") \
             WHERE \
                 "meldingen_melding"."afgesloten_op" > \'{afgesloten_op_gt}\' \
+                AND "locatie_locatie"."buurtnaam" IS NOT NULL \
+                AND "locatie_locatie"."wijknaam" IS NOT NULL \
+                AND "locatie_locatie"."locatie_type" = \'adres\' \
                 {sq_where_to} \
             GROUP BY "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" \
             ORDER BY "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" ASC; \
@@ -102,6 +107,9 @@ class MeldingQuerySet(QuerySet):
                 JOIN "locatie_locatie" ON ("locatie_locatie"."id" = "meldingen_melding"."referentie_locatie_id") \
             WHERE \
                 "meldingen_melding"."aangemaakt_op" > \'{aangemaakt_op_gt}\' \
+                AND "locatie_locatie"."buurtnaam" IS NOT NULL \
+                AND "locatie_locatie"."wijknaam" IS NOT NULL \
+                AND "locatie_locatie"."locatie_type" = \'adres\' \
                 {sq_where_to} \
                 {sq_openstaand} \
             GROUP BY "locatie_locatie"."wijknaam", "locatie_locatie"."buurtnaam" \
