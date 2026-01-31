@@ -27,7 +27,7 @@ filetype==1.2.0
 idna==3.7
 model-bakery==1.20.5
 nh3==0.2.18
-Pillow==9.4.0
+Pillow==10.3.0
 pillow-heif==0.13.0
 psycopg2>=2.9.5
 graphviz==0.20.1
