@@ -25,6 +25,7 @@ from apps.taken.serializers import (
     TaakopdrachtNotificatieSaveSerializer,
     TaakopdrachtNotificatieSerializer,
     TaakopdrachtSerializer,
+    TaakopdrachtUitzettenSerializer,
     TaakopdrachtVerwijderenSerializer,
 )
 from config.context import db
@@ -503,6 +504,51 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
             )
             return Response(serializer.data, status.HTTP_201_CREATED)
         logger.warning(f"taakopdracht_aanmaken: {serializer.errors}")
+        return Response(
+            data=serializer.errors,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    @extend_schema(
+        description="Taakopdracht voor een melding uitzetten",
+        request=TaakopdrachtUitzettenSerializer,
+        responses={status.HTTP_200_OK: {}},
+        parameters=None,
+    )
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="taakopdracht/(?P<taakopdracht_uuid>[^/.]+)/uitzetten",
+        serializer_class=TaakopdrachtUitzettenSerializer,
+        name="taakopdracht-uitzetten",
+    )
+    def taakopdracht_uitzetten(self, request, uuid, taakopdracht_uuid):
+        from apps.taken.models import Taakopdracht
+
+        melding = self.get_object()
+        serializer = self.serializer_class(
+            data=request.data,
+            context={"request": request},
+        )
+        try:
+            taakopdracht = melding.taakopdrachten_voor_melding.get(
+                uuid=taakopdracht_uuid,
+            )
+        except Taakopdracht.DoesNotExist:
+            raise Http404("De taakopdracht is niet gevonden!")
+
+        if (
+            taakopdracht.uitgezet_op
+            or taakopdracht.verwijderd_op
+            or len(taakopdracht.afhankelijkheid) > 0
+        ):
+            return Response({}, status.HTTP_200_OK)
+
+        if serializer.is_valid():
+            Melding.acties.taakopdracht_uitzetten(
+                serializer, melding, taakopdracht, request
+            )
+            return Response({}, status.HTTP_200_OK)
         return Response(
             data=serializer.errors,
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
