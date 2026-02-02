@@ -84,8 +84,8 @@ class AdresSerializer(AdresBasisSerializer, serializers.ModelSerializer):
             "wijknaam",
             "buurtnaam",
             "geometrie",
-            "gewicht",
         )
+        read_only_fields = ("gewicht",)
 
 
 class GrafSerializer(GrafBasisSerializer, serializers.ModelSerializer):
