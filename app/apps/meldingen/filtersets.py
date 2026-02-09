@@ -103,7 +103,7 @@ class BasisFilter(PreFilterFilterSet):
     )
 
 
-class MeldingFilter(BasisFilter):
+class MeldingFilter(filters.FilterSet):
     origineel_aangemaakt_gte = filters.DateTimeFilter(
         field_name="origineel_aangemaakt", lookup_expr="gte"
     )

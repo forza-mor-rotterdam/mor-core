@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta
 
 from apps.meldingen.filtersets import (
     MeldingFilter,
@@ -8,12 +9,16 @@ from apps.meldingen.filtersets import (
 from apps.meldingen.models import Melding, Meldinggebeurtenis, Specificatie
 from apps.meldingen.serializers import (
     MeldingAantallenSerializer,
+    MeldingAfgehandeldPerBuurtAantalPaginatedSerializer,
+    MeldingAfgehandeldPerBuurtAantalSerializer,
     MeldingDetailSerializer,
     MeldingGebeurtenisAfhandelenSerializer,
     MeldinggebeurtenisSerializer,
     MeldingGebeurtenisStatusSerializer,
     MeldingGebeurtenisUrgentieSerializer,
     MeldingSerializer,
+    MeldingStatusBuurtAantalPaginatedSerializer,
+    MeldingStatusBuurtAantalSerializer,
     SpecificatieSerializer,
 )
 from apps.taken.serializers import (
@@ -28,7 +33,7 @@ from django.http import Http404, JsonResponse
 from django.utils import timezone
 from django_filters import rest_framework as filters
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -43,81 +48,91 @@ class MeldinggebeurtenisViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewS
     serializer_class = MeldinggebeurtenisSerializer
 
 
-@extend_schema(
-    parameters=[
-        OpenApiParameter("omschrijving", OpenApiTypes.STR, OpenApiParameter.QUERY),
-        OpenApiParameter("onderwerp", OpenApiTypes.INT, OpenApiParameter.QUERY),
-        OpenApiParameter("status", OpenApiTypes.STR, OpenApiParameter.QUERY),
-        OpenApiParameter("begraafplaats", OpenApiTypes.INT, OpenApiParameter.QUERY),
-        OpenApiParameter("begraafplaats_vak", OpenApiTypes.STR, OpenApiParameter.QUERY),
-        OpenApiParameter(
-            "begraafplaats_grafnummer", OpenApiTypes.STR, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "begraafplaats_grafnummer_gte", OpenApiTypes.INT, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "begraafplaats_grafnummer_gt", OpenApiTypes.INT, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "begraafplaats_grafnummer_lte", OpenApiTypes.INT, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "begraafplaats_grafnummer_lt", OpenApiTypes.INT, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter("meta__categorie", OpenApiTypes.STR, OpenApiParameter.QUERY),
-        OpenApiParameter(
-            "aangemaakt_op_gte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "aangemaakt_op_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "aangemaakt_op_lte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "aangemaakt_op_lt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "aangepast_op_gte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "aangepast_op_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "aangepast_op_lte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "aangepast_op_lt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "origineel_aangemaakt_gte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "origineel_aangemaakt_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "origineel_aangemaakt_lte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "origineel_aangemaakt_lt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "afgesloten_op_gte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "afgesloten_op_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "afgesloten_op_lte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "afgesloten_op_lt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
-        ),
-        OpenApiParameter(
-            "actieve_meldingen", OpenApiTypes.BOOL, OpenApiParameter.QUERY
-        ),
-    ]
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            OpenApiParameter("omschrijving", OpenApiTypes.STR, OpenApiParameter.QUERY),
+            OpenApiParameter("onderwerp", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            OpenApiParameter("status", OpenApiTypes.STR, OpenApiParameter.QUERY),
+            OpenApiParameter("begraafplaats", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            OpenApiParameter(
+                "begraafplaats_vak", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "begraafplaats_grafnummer", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "begraafplaats_grafnummer_gte", OpenApiTypes.INT, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "begraafplaats_grafnummer_gt", OpenApiTypes.INT, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "begraafplaats_grafnummer_lte", OpenApiTypes.INT, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "begraafplaats_grafnummer_lt", OpenApiTypes.INT, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "meta__categorie", OpenApiTypes.STR, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "aangemaakt_op_gte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "aangemaakt_op_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "aangemaakt_op_lte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "aangemaakt_op_lt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "aangepast_op_gte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "aangepast_op_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "aangepast_op_lte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "aangepast_op_lt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "origineel_aangemaakt_gte",
+                OpenApiTypes.DATETIME,
+                OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                "origineel_aangemaakt_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "origineel_aangemaakt_lte",
+                OpenApiTypes.DATETIME,
+                OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                "origineel_aangemaakt_lt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "afgesloten_op_gte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "afgesloten_op_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "afgesloten_op_lte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "afgesloten_op_lt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "actieve_meldingen", OpenApiTypes.BOOL, OpenApiParameter.QUERY
+            ),
+        ]
+    )
 )
 class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "uuid"
@@ -134,7 +149,6 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
         )
         .all()
     )
-    prefiltered_queryset = None
     serializer_class = MeldingSerializer
     serializer_detail_class = MeldingDetailSerializer
     filter_backends = (
@@ -562,6 +576,158 @@ class MeldingViewSet(viewsets.ReadOnlyModelViewSet):
                 many=True,
             )
         return Response(serializer.data)
+
+    @extend_schema(
+        description="Melding aantallen per wijk, buurt en status, om alleen spoed meldingen te zoeken, moet de spoed parameter 'true' bevatten, als er een andere waarde wordt gebruikt, worden alleen niet spoed meldingen gevonden. Bij het ontbreken van de spoed parameter worden alle meldingen gevonden.",
+        responses={status.HTTP_200_OK: MeldingStatusBuurtAantalPaginatedSerializer()},
+        parameters=[
+            OpenApiParameter("spoed", OpenApiTypes.STR, OpenApiParameter.QUERY),
+        ],
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="status-buurt-aantallen",
+        serializer_class=MeldingStatusBuurtAantalPaginatedSerializer,
+        filter_backends=(),
+        pagination_class=None,
+        filterset_class=None,
+    )
+    def melding_status_buurt_aantallen(self, request):
+        spoed = self.request.GET.get("spoed")
+        spoed_start = 0
+        spoed_end = 1.1
+        if spoed:
+            spoed_start = 0.5 if spoed == "true" else 0
+            spoed_end = 1.1 if spoed == "true" else 0.5
+
+        with db(settings.READONLY_DATABASE_KEY):
+            serializer = MeldingStatusBuurtAantalSerializer(
+                Melding.objects.melding_status_buurt_aantallen(
+                    spoed_start=spoed_start,
+                    spoed_end=spoed_end,
+                ),
+                context={"request": request},
+                many=True,
+            )
+        return Response(
+            {
+                "count": len(serializer.data),
+                "results": serializer.data,
+            }
+        )
+
+    @extend_schema(
+        description="Afgehandelde melding aantallen in een periode (standaard periode is afgelopen 24 uur)",
+        responses={
+            status.HTTP_200_OK: MeldingAfgehandeldPerBuurtAantalPaginatedSerializer()
+        },
+        parameters=[
+            OpenApiParameter(
+                "afgesloten_op_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "afgesloten_op_lte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+        ],
+        filters=False,
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="afgehandeld-aantallen",
+        serializer_class=MeldingAfgehandeldPerBuurtAantalPaginatedSerializer,
+        filter_backends=(),
+        pagination_class=None,
+        filterset_class=None,
+    )
+    def melding_afgehandeld_per_buurt_aantallen(self, request):
+        afgesloten_op_gt = (timezone.now() - timedelta(hours=24)).isoformat()
+        afgesloten_op_lte = timezone.now().isoformat()
+        try:
+            afgesloten_op_gt = datetime.fromisoformat(
+                self.request.GET.get("afgesloten_op_gt", afgesloten_op_gt)
+            )
+        except Exception:
+            ...
+        try:
+            afgesloten_op_lte = datetime.fromisoformat(
+                self.request.GET.get("afgesloten_op_lte", afgesloten_op_lte)
+            )
+        except Exception:
+            ...
+
+        with db(settings.READONLY_DATABASE_KEY):
+            serializer = MeldingAfgehandeldPerBuurtAantalSerializer(
+                Melding.objects.melding_afgehandeld_per_buurt_aantallen(
+                    afgesloten_op_gt=afgesloten_op_gt,
+                    afgesloten_op_lte=afgesloten_op_lte,
+                ),
+                context={"request": request},
+                many=True,
+            )
+        return Response(
+            {
+                "count": len(serializer.data),
+                "results": serializer.data,
+            }
+        )
+
+    @extend_schema(
+        description="Aangemaakte melding aantallen in een periode (standaard periode is afgelopen 24 uur, standaard niet afgehandeld)",
+        responses={
+            status.HTTP_200_OK: MeldingAfgehandeldPerBuurtAantalPaginatedSerializer()
+        },
+        parameters=[
+            OpenApiParameter(
+                "aangemaakt_op_gt", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+            OpenApiParameter(
+                "aangemaakt_op_lte", OpenApiTypes.DATETIME, OpenApiParameter.QUERY
+            ),
+        ],
+        filters=False,
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="aangemaakt-aantallen",
+        serializer_class=MeldingAfgehandeldPerBuurtAantalPaginatedSerializer,
+        filter_backends=(),
+        pagination_class=None,
+        filterset_class=None,
+    )
+    def melding_aangemaakt_per_buurt_aantallen(self, request):
+        aangemaakt_op_gt = (timezone.now() - timedelta(hours=24)).isoformat()
+        aangemaakt_op_lte = timezone.now().isoformat()
+        try:
+            aangemaakt_op_gt = datetime.fromisoformat(
+                self.request.GET.get("aangemaakt_op_gt", aangemaakt_op_gt)
+            )
+        except Exception:
+            ...
+        try:
+            aangemaakt_op_lte = datetime.fromisoformat(
+                self.request.GET.get("aangemaakt_op_lte", aangemaakt_op_lte)
+            )
+        except Exception:
+            ...
+
+        with db(settings.READONLY_DATABASE_KEY):
+            serializer = MeldingAfgehandeldPerBuurtAantalSerializer(
+                Melding.objects.melding_aangemaakt_per_buurt_aantallen(
+                    aangemaakt_op_gt=aangemaakt_op_gt,
+                    aangemaakt_op_lte=aangemaakt_op_lte,
+                ),
+                context={"request": request},
+                many=True,
+            )
+        return Response(
+            {
+                "count": len(serializer.data),
+                "results": serializer.data,
+            }
+        )
 
 
 @extend_schema(

@@ -39,7 +39,7 @@ class TaakapplicatieAdmin(admin.ModelAdmin):
                 logger.error(f"Encryption error: {e}")
 
         try:
-            if obj.haal_token():
+            if obj.haal_token(force_cache=True):
                 messages.success(request, "Connectie met de applicatie is gelukt")
             else:
                 messages.error(request, "Connectie met de applicatie is mislukt!")

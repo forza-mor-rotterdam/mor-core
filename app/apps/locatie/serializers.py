@@ -62,6 +62,16 @@ class LocatieRelatedField(serializers.RelatedField):
 
 
 class AdresSerializer(AdresBasisSerializer, serializers.ModelSerializer):
+    huisletter = serializers.CharField(
+        max_length=1, required=False, allow_blank=True, allow_null=True
+    )
+    toevoeging = serializers.CharField(
+        max_length=4, required=False, allow_blank=True, allow_null=True
+    )
+    postcode = serializers.CharField(
+        max_length=7, required=False, allow_blank=True, allow_null=True
+    )
+
     class Meta:
         model = Adres
         fields = (
@@ -74,8 +84,8 @@ class AdresSerializer(AdresBasisSerializer, serializers.ModelSerializer):
             "wijknaam",
             "buurtnaam",
             "geometrie",
-            "gewicht",
         )
+        read_only_fields = ("gewicht",)
 
 
 class GrafSerializer(GrafBasisSerializer, serializers.ModelSerializer):

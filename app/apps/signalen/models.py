@@ -28,6 +28,8 @@ class Signaal(BasisModel):
     signaal_data = DictJSONField(default=dict)
     bron_id = models.CharField(max_length=500, null=True, blank=True)
     bron_signaal_id = models.CharField(max_length=500, null=True, blank=True)
+    kanaal = models.CharField(max_length=500, null=True, blank=True)
+    versie = models.CharField(max_length=500, null=True, blank=True)
     origineel_aangemaakt = models.DateTimeField(null=True, blank=True)
     urgentie = models.FloatField(default=0.2)
     omschrijving_melder = models.CharField(max_length=2000, null=True, blank=True)
@@ -69,7 +71,10 @@ class Signaal(BasisModel):
     def notificatie_melding_afgesloten(self):
         applicatie = Applicatie.vind_applicatie_obv_uri(self.signaal_url)
         if applicatie:
-            return applicatie.notificatie_melding_afgesloten(self.signaal_url)
+            melding_url = self.melding.get_absolute_url()
+            return applicatie.notificatie_melding_afgesloten(
+                self.signaal_url, melding_url=melding_url
+            )
         logger.warning(
             f"De notificatie naar de applicatie waar de melding vandaan komt, kon niet worden verstuurd: url={self.signaal_url}"
         )

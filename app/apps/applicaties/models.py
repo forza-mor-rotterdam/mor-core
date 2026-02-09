@@ -30,6 +30,10 @@ class Applicatie(BasisModel):
         TAAKAPPLICATIE = "taakapplicatie", "Taakapplicatie"
         SIGNAALAPPLICATIE = "signaalapplicatie", "Signaalapplicatie"
 
+    class ApplicatieTokenRetrieveMethods(models.TextChoices):
+        POST = "post", "POST"
+        GET = "get", "GET"
+
     naam = models.CharField(
         max_length=100,
         default="Applicatie",
@@ -62,6 +66,25 @@ class Applicatie(BasisModel):
     applicatie_gebruiker_token_timeout = models.PositiveIntegerField(
         default=60 * 60,
     )
+    applicatie_token_retrieve_method = models.CharField(
+        default=ApplicatieTokenRetrieveMethods.POST,
+        max_length=20,
+        choices=ApplicatieTokenRetrieveMethods.choices,
+    )
+    applicatie_token_api_path = models.CharField(
+        default="api-token-auth",
+        max_length=100,
+    )
+    applicatie_auth_header_key = models.CharField(
+        default="Authorization",
+        max_length=100,
+    )
+    applicatie_auth_header_token_prefix = models.CharField(
+        default="Token",
+        max_length=100,
+        blank=True,
+        null=True,
+    )
     applicatie_type = models.CharField(
         default=ApplicatieTypes.TAAKAPPLICATIE,
         choices=ApplicatieTypes.choices,
@@ -73,6 +96,12 @@ class Applicatie(BasisModel):
     stuur_notificatie_melding_veranderd = models.BooleanField(
         default=False,
     )
+    notificatie_melding_afgesloten_url_postfix = models.CharField(
+        default="melding-afgesloten/",
+        max_length=100,
+        blank=True,
+        null=True,
+    )
 
     def api_service(self):
         f = Fernet(settings.FERNET_KEY)
@@ -82,6 +111,12 @@ class Applicatie(BasisModel):
             "gebruikersnaam": self.applicatie_gebruiker_naam,
             "wachtwoord": f.decrypt(self.applicatie_gebruiker_wachtwoord).decode(),
             "token_timeout": self.applicatie_gebruiker_token_timeout,
+            "api_token_pad": self.applicatie_token_api_path,
+            "token_retrieve_method": self.applicatie_token_retrieve_method,
+            "auth_header_key": self.applicatie_auth_header_key,
+            "auth_header_token_prefix": self.applicatie_auth_header_token_prefix
+            if self.applicatie_auth_header_token_prefix is not None
+            else "",
         }
         if self.applicatie_type == Applicatie.ApplicatieTypes.TAAKAPPLICATIE:
             return TaakapplicatieService(**init_kwargs)
@@ -116,11 +151,11 @@ class Applicatie(BasisModel):
             wachtwoord_decrypted
         )
 
-    def haal_token(self):
+    def haal_token(self, force_cache=False):
         api_service = self.api_service()
         api_service_call = getattr(api_service, "haal_token", None)
         if callable(api_service_call):
-            return api_service_call()
+            return api_service_call(force_cache=force_cache)
         return None
 
     def melding_veranderd_notificatie_voor_applicatie(
@@ -174,13 +209,19 @@ class Applicatie(BasisModel):
         )
         return {}
 
-    def notificatie_melding_afgesloten(self, signaal_url):
+    def notificatie_melding_afgesloten(self, signaal_url, melding_url=None):
         if not self.stuur_notificatie_melding_afgesloten:
             return {}
         api_service = self.api_service()
         api_service_call = getattr(api_service, "notificatie_melding_afgesloten", None)
         if callable(api_service_call):
-            return api_service_call(signaal_url)
+            return api_service_call(
+                signaal_url,
+                url_postfix=self.notificatie_melding_afgesloten_url_postfix
+                if self.notificatie_melding_afgesloten_url_postfix is not None
+                else "",
+                data={"melding_url": melding_url},
+            )
 
         logger.warning(
             f"API Service({api_service}) heeft geen methode 'notificatie_melding_afgesloten'"

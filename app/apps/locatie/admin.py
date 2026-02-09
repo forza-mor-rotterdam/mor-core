@@ -1,3 +1,4 @@
+from apps.locatie.admin_filters import MeldingStatusFilter
 from apps.locatie.models import Adres, Graf, Lichtmast, Locatie
 from django.contrib import admin
 from django.contrib.gis import forms
@@ -69,7 +70,14 @@ class LocatieAdmin(admin.ModelAdmin):
         "melding__uuid",
         "signaal__uuid",
     ]
-    list_filter = ("primair", "plaatsnaam")
+    list_filter = (
+        "primair",
+        "plaatsnaam",
+        "buurtnaam",
+        "wijknaam",
+        "locatie_type",
+        MeldingStatusFilter,
+    )
     readonly_fields = (
         "uuid",
         "aangemaakt_op",
@@ -90,6 +98,7 @@ class LocatieAdmin(admin.ModelAdmin):
         return qs.select_related(
             "melding",
             "signaal",
+            "melding__status",
         )
 
 
