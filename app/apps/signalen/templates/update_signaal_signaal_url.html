@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="nl">
+    <head>
+        <title>MOR-Core</title>
+        <meta name="description" content="MOR basisapplicatie">
+        <meta name="keywords"
+              content="MOR, Meldingen openbare ruimte, gemeente Rotterdam, meldingen, taken">
+    </head>
+    <body>
+        <h1>Update signaal url</h1>
+        <h2>Instellingen</h2>
+        <form action="{% url 'update_signaal_url' %}"
+              method="post"
+              enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Update</button>
+        </form>
+        <a href="{% url 'update_signaal_url_summary' %}">Summary</a>
+    </body>
+</html>

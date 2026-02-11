@@ -3,6 +3,10 @@ import json
 import celery
 from celery import shared_task
 from celery.utils.log import get_task_logger
+from django.conf import settings
+from django.core.cache import cache
+from django.db import connections
+from django.utils import timezone
 
 logger = get_task_logger(__name__)
 
@@ -67,3 +71,144 @@ def convert_aanvullende_informatie_to_aanvullende_vragen(self, signaal_ids):
             logger.error(
                 f"Error converting aanvullende_informatie to aanvullende_vragen for signaal {signaal.pk}: {e}"
             )
+
+
+def dictfetchall(cursor):
+    """
+    Return all rows from a cursor as a dict.
+    Assume the column names are unique.
+    """
+    if not cursor.description:
+        return []
+    columns = [col[0] for col in cursor.description]
+    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
+def set_signaal_url_by_given_id_bron_signaal_id(
+    url_prefix,
+    id_bron_signaal_id_list,
+    trailing_slash=False,
+    dryrun=True,
+    raw_query=False,
+):
+    from apps.signalen.models import Signaal
+
+    prefix = url_prefix.strip("/")
+    prefix = f"{prefix}/" if prefix else ""
+    trailing_slash = "/" if trailing_slash else ""
+    try:
+        url_lookup = {
+            id_bron_signaal_id[0]: id_bron_signaal_id[1]
+            for id_bron_signaal_id in id_bron_signaal_id_list
+        }
+    except Exception as e:
+        logger.error(f"set_signaal_url_by_given_id_bron_signaal_id: error={e}")
+
+    id_list = [signaal[0] for signaal in id_bron_signaal_id_list]
+    signalen_updated = []
+    signalen = []
+
+    if (raw_query and dryrun) or not raw_query:
+        signalen = Signaal.objects.filter(bron_signaal_id__in=id_list)
+        for signaal in signalen:
+            bron_signaal_id = signaal.bron_signaal_id
+            signaal_url = f"{prefix}{url_lookup[bron_signaal_id]}{trailing_slash}"
+            signalen_updated.append([signaal.bron_signaal_id])
+            signaal.signaal_url = signaal_url
+
+    if not raw_query and not dryrun:
+        Signaal.objects.bulk_update(signalen, ["signaal_url"])
+
+    if raw_query and not dryrun:
+        case_sql = " ".join(
+            [
+                f"WHEN (\"signalen_signaal\".\"bron_signaal_id\" = '{signaal[0]}') THEN '{prefix}{signaal[1]}{trailing_slash}'"
+                for signaal in id_bron_signaal_id_list
+            ]
+        )
+        in_sql = ", ".join([f"'{signaal[0]}'" for signaal in id_bron_signaal_id_list])
+        sql = f'UPDATE "signalen_signaal" \
+            SET "signaal_url" = (CASE {case_sql} ELSE NULL END)::varchar(200) \
+            WHERE "signalen_signaal"."bron_signaal_id" IN ({in_sql}) \
+            RETURNING "signalen_signaal"."bron_signaal_id"'
+
+        with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
+            cursor.execute("SET statement_timeout TO 120000")
+            cursor.execute(sql)
+            signalen_updated = [
+                list(signaal.values()) for signaal in dictfetchall(cursor)
+            ]
+
+        print("cursor")
+        print(cursor.rowcount)
+        print(signalen_updated)
+        # print(dir(cursor.logger))
+        # print(cursor.logger)
+    bron_signaal_id_not_found_list = [
+        id for id in id_list if id not in [signaal[0] for signaal in signalen_updated]
+    ]
+    return {
+        "source_bron_signaal_id_list": id_list,
+        "bron_signaal_id_not_found_list": bron_signaal_id_not_found_list,
+        "signalen_updated": signalen_updated,
+    }
+
+
+@shared_task(bind=True)
+def task_set_signaal_url_by_given_id_bron_signaal_id(
+    self,
+    url_prefix,
+    id_bron_signaal_id_list,
+    trailing_slash=False,
+    dryrun=True,
+    raw_query=False,
+    background_task=False,
+):
+    cache_timeout = 60 * 60 * 24 * 14
+    start = timezone.now()
+    results = set_signaal_url_by_given_id_bron_signaal_id(
+        url_prefix,
+        id_bron_signaal_id_list,
+        trailing_slash=trailing_slash,
+        dryrun=dryrun,
+        raw_query=raw_query,
+    )
+    finish = timezone.now()
+
+    cache.set(
+        "signaal_url_update_summary",
+        {
+            "start_datetime": start.isoformat(),
+            "finish_datetime": finish.isoformat(),
+            "duration_ms": round((finish - start).microseconds / 1000),
+            "source_bron_signaal_id_list_count": len(
+                results["source_bron_signaal_id_list"]
+            ),
+            "signalen_updated_count": len(results["signalen_updated"]),
+            "bron_signaal_id_not_found_list_count": len(
+                results["bron_signaal_id_not_found_list"]
+            ),
+            "url_prefix": url_prefix,
+            "trailing_slash": trailing_slash,
+            "dryrun": dryrun,
+            "raw_query": raw_query,
+            "background_task": background_task,
+        },
+        timeout=cache_timeout,
+    )
+    cache.set(
+        "source_bron_signaal_id_list",
+        results["source_bron_signaal_id_list"],
+        timeout=cache_timeout,
+    )
+    cache.set(
+        "signalen_updated",
+        results["signalen_updated"],
+        timeout=cache_timeout,
+    )
+    return {
+        "source_bron_signaal_id_list_count": len(
+            results["source_bron_signaal_id_list"]
+        ),
+        "signalen_updated_count": len(results["signalen_updated"]),
+    }

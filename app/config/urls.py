@@ -15,6 +15,11 @@ from apps.meldingen.viewsets import (
     MeldingViewSet,
     SpecificatieViewSet,
 )
+from apps.signalen.views import (
+    UpdateSignaalSignaalUrlResultView,
+    UpdateSignaalSignaalUrlSummaryView,
+    UpdateSignaalSignaalUrlView,
+)
 from apps.signalen.viewsets import SignaalViewSet
 from apps.status.viewsets import StatusViewSet
 from apps.taken.viewsets import TaakgebeurtenisViewSet, TaakopdrachtViewSet
@@ -57,6 +62,21 @@ urlpatterns = [
         name="get_gebruiker",
     ),
     path("api/v1/gebruiker/", SetGebruikerAPIView.as_view(), name="set_gebruiker"),
+    path(
+        "admin/update-signaal-url/",
+        UpdateSignaalSignaalUrlView.as_view(),
+        name="update_signaal_url",
+    ),
+    path(
+        "admin/update-signaal-url/summary/",
+        UpdateSignaalSignaalUrlSummaryView.as_view(),
+        name="update_signaal_url_summary",
+    ),
+    path(
+        "admin/update-signaal-url/summary/<str:result_type>/",
+        UpdateSignaalSignaalUrlResultView.as_view(),
+        name="update_signaal_url_result",
+    ),
     path("api-token-auth/", views.obtain_auth_token),
     path(
         "login/",
