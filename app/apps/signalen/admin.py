@@ -1,4 +1,3 @@
-from apps.signalen.admin_filters import BijlagenAantalFilter
 from apps.signalen.models import Signaal
 from django.contrib import admin
 
@@ -10,7 +9,6 @@ class SignaalAdmin(admin.ModelAdmin):
         "id",
         "uuid",
         "signaal_url",
-        "bijlage_aantal",
         "aangemaakt_op",
         "aangepast_op",
         "bron_id",
@@ -30,7 +28,7 @@ class SignaalAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
-        BijlagenAantalFilter,
+        # BijlagenAantalFilter,
         "bron_id",
     )
 
@@ -57,7 +55,7 @@ class SignaalAdmin(admin.ModelAdmin):
         return qs.select_related(
             "melding",
             "melder",
-        ).prefetch_related("bijlagen")
+        )  # .prefetch_related("bijlagen")
 
 
 admin.site.register(Signaal, SignaalAdmin)

@@ -257,6 +257,7 @@ CELERY_TASK_DEFAULT_QUEUE = TASK_HIGH_PRIORITY_QUEUE_NAME
 
 HIGHEST_PRIORITY_TASKS = [
     "config.celery.test_critical_task",
+    "apps.signalen.tasks.task_set_signaal_url_by_given_id_bron_signaal_id",
 ]
 HIGH_PRIORITY_TASKS = [
     "config.celery.test_urgent_task",

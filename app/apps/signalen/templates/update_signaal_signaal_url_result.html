@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="nl">
+    <head>
+        <title>MOR-Core</title>
+        <meta name="description" content="MOR basisapplicatie">
+        <meta name="keywords"
+              content="MOR, Meldingen openbare ruimte, gemeente Rotterdam, meldingen, taken">
+    </head>
+    <body>
+        <h1>Update signaal url summary</h1>
+        <dl>
+            {% for k, v in signaal_url_update_summary.items %}
+                <dt>{{ k }}</dt>
+                <dd>
+                    {{ v }}
+                </dd>
+            {% endfor %}
+        </dl>
+        <ul>
+            <li>
+                <a href="{% url 'update_signaal_url' %}">Back to update form</a>
+            </li>
+            <li>
+                <a href="{% url 'update_signaal_url_result' 'signalen_updated' %}">Download updated signalen</a>
+            </li>
+            <li>
+                <a href="{% url 'update_signaal_url_result' 'bron_signaal_id_not_found_list' %}">Download not found signalen</a>
+            </li>
+            <li>
+                <a href="{% url 'update_signaal_url_result' 'signalen_afgehandeld_list' %}">
+                    Download signalen afgehandeld from source list
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'update_signaal_url_result' 'signalen_openstaand_wrong_signaal_url_list' %}">
+                    Download signalen openstaand wrong signaal url
+                </a>
+            </li>
+        </ul>
+    </body>
+</html>
