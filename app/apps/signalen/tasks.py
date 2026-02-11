@@ -87,6 +87,7 @@ def dictfetchall(cursor):
 def set_signaal_url_by_given_id_bron_signaal_id(
     url_prefix,
     id_bron_signaal_id_list,
+    bron_id,
     trailing_slash=False,
     dryrun=True,
     raw_query=False,
@@ -109,7 +110,7 @@ def set_signaal_url_by_given_id_bron_signaal_id(
     signalen = []
 
     if (raw_query and dryrun) or not raw_query:
-        signalen = Signaal.objects.filter(bron_signaal_id__in=id_list)
+        signalen = Signaal.objects.filter(bron_id=bron_id, bron_signaal_id__in=id_list)
         for signaal in signalen:
             bron_signaal_id = signaal.bron_signaal_id
             signaal_url = f"{prefix}{url_lookup[bron_signaal_id]}{trailing_slash}"
@@ -122,7 +123,9 @@ def set_signaal_url_by_given_id_bron_signaal_id(
     if raw_query and not dryrun:
         case_sql = " ".join(
             [
-                f"WHEN (\"signalen_signaal\".\"bron_signaal_id\" = '{signaal[0]}') THEN '{prefix}{signaal[1]}{trailing_slash}'"
+                f'WHEN ("signalen_signaal"."bron_signaal_id" = \'{signaal[0]}\' \
+                    AND "signalen_signaal"."bron_id" = \'{bron_id}\') \
+                    THEN \'{prefix}{signaal[1]}{trailing_slash}\''
                 for signaal in id_bron_signaal_id_list
             ]
         )
@@ -130,6 +133,7 @@ def set_signaal_url_by_given_id_bron_signaal_id(
         sql = f'UPDATE "signalen_signaal" \
             SET "signaal_url" = (CASE {case_sql} ELSE NULL END)::varchar(200) \
             WHERE "signalen_signaal"."bron_signaal_id" IN ({in_sql}) \
+                AND "signalen_signaal"."bron_id" = \'{bron_id}\' \
             RETURNING "signalen_signaal"."bron_signaal_id"'
 
         with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
@@ -159,6 +163,7 @@ def task_set_signaal_url_by_given_id_bron_signaal_id(
     self,
     url_prefix,
     id_bron_signaal_id_list,
+    bron_id,
     trailing_slash=False,
     dryrun=True,
     raw_query=False,
@@ -169,6 +174,7 @@ def task_set_signaal_url_by_given_id_bron_signaal_id(
     results = set_signaal_url_by_given_id_bron_signaal_id(
         url_prefix,
         id_bron_signaal_id_list,
+        bron_id,
         trailing_slash=trailing_slash,
         dryrun=dryrun,
         raw_query=raw_query,
@@ -188,6 +194,7 @@ def task_set_signaal_url_by_given_id_bron_signaal_id(
             "bron_signaal_id_not_found_list_count": len(
                 results["bron_signaal_id_not_found_list"]
             ),
+            "bron_id": bron_id,
             "url_prefix": url_prefix,
             "trailing_slash": trailing_slash,
             "dryrun": dryrun,

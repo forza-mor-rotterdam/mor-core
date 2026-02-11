@@ -54,6 +54,7 @@ class UpdateSignaalSignaalUrlView(LoginRequiredMixin, UserPassesTestMixin, FormV
         kwargs = {
             "url_prefix": form.cleaned_data["url_prefix"],
             "id_bron_signaal_id_list": data,
+            "bron_id": form.cleaned_data["bron_id"],
             "dryrun": form.cleaned_data["dryrun"],
             "trailing_slash": form.cleaned_data["trailing_slash"],
             "raw_query": form.cleaned_data["raw_query"],
