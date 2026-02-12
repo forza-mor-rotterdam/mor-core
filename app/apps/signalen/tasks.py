@@ -121,24 +121,33 @@ def set_signaal_url_by_given_id_bron_signaal_id(
         Signaal.objects.bulk_update(signalen, ["signaal_url"])
 
     if raw_query and not dryrun:
+        params = [
+            sig_item
+            for signaal in id_bron_signaal_id_list
+            for sig_item in [
+                signaal[0],
+                bron_id,
+                f"{prefix}{signaal[1]}{trailing_slash}",
+            ]
+        ]
         case_sql = " ".join(
             [
-                f'WHEN ("signalen_signaal"."bron_signaal_id" = \'{signaal[0]}\' \
-                    AND "signalen_signaal"."bron_id" = \'{bron_id}\') \
-                    THEN \'{prefix}{signaal[1]}{trailing_slash}\''
-                for signaal in id_bron_signaal_id_list
+                'WHEN ("signalen_signaal"."bron_signaal_id" = %s AND "signalen_signaal"."bron_id" = %s) THEN %s'
+                for _ in id_bron_signaal_id_list
             ]
         )
-        in_sql = ", ".join([f"'{signaal[0]}'" for signaal in id_bron_signaal_id_list])
+        params = params + [signaal[0] for signaal in id_bron_signaal_id_list]
+        params = params + [bron_id]
+        in_sql = ", ".join(["%s" for _ in id_bron_signaal_id_list])
         sql = f'UPDATE "signalen_signaal" \
             SET "signaal_url" = (CASE {case_sql} ELSE NULL END)::varchar(200) \
             WHERE "signalen_signaal"."bron_signaal_id" IN ({in_sql}) \
-                AND "signalen_signaal"."bron_id" = \'{bron_id}\' \
+                AND "signalen_signaal"."bron_id" = %s \
             RETURNING "signalen_signaal"."bron_signaal_id"'
 
         with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
-            cursor.execute("SET statement_timeout TO 120000")
-            cursor.execute(sql)
+            cursor.execute("SET statement_timeout TO 240000")
+            cursor.execute(sql, params)
             signalen_updated = [
                 list(signaal.values()) for signaal in dictfetchall(cursor)
             ]
