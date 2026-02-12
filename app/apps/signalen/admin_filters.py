@@ -15,3 +15,21 @@ class BijlagenAantalFilter(admin.SimpleListFilter):
                 **{self.value(): 0}
             )
         return queryset
+
+
+class MeldingAfgehandeldFilter(admin.SimpleListFilter):
+    title = "Melding afgehandeld"
+    parameter_name = "melding_afgehandeld"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("yes", "Afgehandeld"),
+            ("no", "Niet afgehandeld"),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value():
+            queryset = queryset.filter(
+                melding__afgesloten_op__isnull=bool(self.value() == "no")
+            )
+        return queryset

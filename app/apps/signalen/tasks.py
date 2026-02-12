@@ -152,11 +152,6 @@ def set_signaal_url_by_given_id_bron_signaal_id(
                 list(signaal.values()) for signaal in dictfetchall(cursor)
             ]
 
-        print("cursor")
-        print(cursor.rowcount)
-        print(signalen_updated)
-        # print(dir(cursor.logger))
-        # print(cursor.logger)
     bron_signaal_id_not_found_list = [
         id for id in id_list if id not in [signaal[0] for signaal in signalen_updated]
     ]

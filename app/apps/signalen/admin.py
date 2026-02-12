@@ -1,3 +1,4 @@
+from apps.signalen.admin_filters import MeldingAfgehandeldFilter
 from apps.signalen.models import Signaal
 from django.contrib import admin
 
@@ -14,7 +15,7 @@ class SignaalAdmin(admin.ModelAdmin):
         "bron_id",
         "bron_signaal_id",
         "melding",
-        "melder",
+        # "melder",
     )
 
     # Define the custom admin action
@@ -29,6 +30,7 @@ class SignaalAdmin(admin.ModelAdmin):
 
     list_filter = (
         # BijlagenAantalFilter,
+        MeldingAfgehandeldFilter,
         "bron_id",
     )
 
@@ -38,6 +40,7 @@ class SignaalAdmin(admin.ModelAdmin):
         "bron_signaal_id",
         "uuid",
         "melding__uuid",
+        "signaal_url__istartswith",
     ]
     raw_id_fields = (
         "melding",
@@ -54,7 +57,7 @@ class SignaalAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs.select_related(
             "melding",
-            "melder",
+            # "melder",
         )  # .prefetch_related("bijlagen")
 
 
