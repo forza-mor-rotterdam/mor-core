@@ -145,7 +145,7 @@ def set_signaal_url_by_given_id_bron_signaal_id(
                 AND "signalen_signaal"."bron_id" = %s \
             RETURNING "signalen_signaal"."bron_signaal_id"'
 
-        with connections[settings.READONLY_DATABASE_KEY].cursor() as cursor:
+        with connections[settings.DEFAULT_DATABASE_KEY].cursor() as cursor:
             cursor.execute("SET statement_timeout TO 240000")
             cursor.execute(sql, params)
             signalen_updated = [
